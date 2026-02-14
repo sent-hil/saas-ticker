@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaaS Ticker Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%230d1117'/><polyline points='15,70 35,50 55,60 85,25' fill='none' stroke='%23f85149' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/><circle cx='85' cy='25' r='5' fill='%23f85149'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 24px 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #7d8590;
+    }
+
+    .last-updated {
+      font-size: 11px;
+      color: #484f58;
+      white-space: nowrap;
+      padding-top: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    colgroup col.col-rank    { width: 36px; }
+    colgroup col.col-ticker  { width: 72px; }
+    colgroup col.col-company { width: 160px; }
+    colgroup col.col-close   { width: 100px; }
+    colgroup col.col-mcap    { width: 100px; }
+    colgroup col.col-nov1    { width: 155px; }
+    colgroup col.col-ath     { width: 155px; }
+
+    thead th {
+      background: #161b22;
+      color: #7d8590;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 10px 12px;
+      border-bottom: 2px solid #30363d;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      user-select: none;
+    }
+
+    thead th.right {
+      text-align: right;
+    }
+
+    /* Sortable column headers */
+    thead th.sortable {
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+
+    thead th.sortable:hover {
+      color: #c9d1d9;
+    }
+
+    .sort-arrows {
+      display: inline-flex;
+      flex-direction: column;
+      vertical-align: middle;
+      margin-left: 4px;
+      line-height: 1;
+      gap: 1px;
+    }
+
+    .sort-arrows .arrow {
+      font-size: 8px;
+      line-height: 1;
+      color: #30363d;
+      transition: color 0.15s ease;
+    }
+
+    thead th.sort-asc .sort-arrows .arrow-up,
+    thead th.sort-desc .sort-arrows .arrow-down {
+      color: #e6edf3;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #21262d;
+      transition: background 0.1s ease;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    tbody tr:hover {
+      background: #1c2333;
+    }
+
+    td {
+      padding: 7px 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    td.rank {
+      color: #484f58;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    td.ticker {
+      font-weight: 600;
+    }
+
+    td.ticker a {
+      color: #58a6ff;
+      text-decoration: none;
+    }
+
+    td.ticker a:hover {
+      text-decoration: underline;
+    }
+
+    td.company {
+      color: #8b949e;
+    }
+
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    td.pct {
+      font-weight: 600;
+      border-radius: 2px;
+    }
+
+    footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer .meta {
+      font-size: 11px;
+      color: #484f58;
+    }
+
+    footer .refresh-btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 6px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    footer .refresh-btn:hover:not(:disabled) {
+      background: #30363d;
+    }
+
+    footer .refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #484f58;
+      border-top-color: #c9d1d9;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Summary metrics bar */
+    .summary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 24px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+    }
+
+    .summary-metric {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .summary-metric .label {
+      font-size: 11px;
+      color: #7d8590;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-metric .value {
+      font-size: 14px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.15s ease;
+      position: relative;
+    }
+
+    .summary-metric .value:hover {
+      opacity: 0.85;
+    }
+
+    .summary-metric .value .badge-arrow {
+      font-size: 9px;
+      margin-left: 4px;
+      opacity: 0.5;
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+
+    .summary-metric .value.expanded .badge-arrow {
+      transform: rotate(180deg);
+    }
+
+    /* Chart panels */
+    .chart-panel {
+      display: none;
+      margin-bottom: 12px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .chart-panel.open {
+      display: block;
+      animation: chartSlideDown 0.2s ease-out;
+    }
+
+    @keyframes chartSlideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      border-bottom: 1px solid #21262d;
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 10px;
+      color: #7d8590;
+    }
+
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .chart-legend-swatch {
+      width: 16px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .chart-legend-swatch.faint {
+      height: 1px;
+      opacity: 0.4;
+    }
+
+    .chart-close {
+      background: none;
+      border: none;
+      color: #484f58;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.15s ease;
+      font-family: inherit;
+    }
+
+    .chart-close:hover {
+      color: #f85149;
+    }
+
+    .chart-body {
+      padding: 16px;
+      height: 300px;
+      position: relative;
+    }
+
+    .chart-loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #484f58;
+      font-size: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #7d8590;
+    }
+
+    .empty-state p {
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SaaS Ticker Dashboard</h1>
+        <p class="subtitle">Performance snapshot &mdash; Since Nov 3, 2025</p>
+      </div>
+      <span class="last-updated">Last updated: {{ last_updated }}</span>
+    </header>
+
+    {% if rows %}
+    <div class="summary-bar">
+      <div class="summary-metric">
+        <span class="label">Median % Since Nov 3</span>
+        <span class="value" id="badge-nov3" style="background:{{ median_nov1_style.bg }};color:{{ median_nov1_style.fg }}" onclick="toggleChart('nov3')">{{ median_nov1_fmt }}<span class="badge-arrow">&#9660;</span></span>
+      </div>
+      <div class="summary-metric">
+        <span class="label">Median % Since ATH</span>
+        <span class="value" id="badge-ath" style="background:{{ median_ath_style.bg }};color:{{ median_ath_style.fg }}" onclick="toggleChart('ath')">{{ median_ath_fmt }}<span class="badge-arrow">&#9660;</span></span>
+      </div>
+    </div>
+
+    <!-- Chart panels (hidden by default, toggled by badge clicks) -->
+    <div id="panel-nov3" class="chart-panel">
+      <div class="chart-header">
+        <span>Median % Since Nov 3, 2025</span>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch" style="background:#f85149"></span>
+            <span>Median</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch faint" style="background:#8b949e"></span>
+            <span>Individual tickers</span>
+          </div>
+        </div>
+        <button class="chart-close" onclick="toggleChart('nov3')">&times;</button>
+      </div>
+      <div class="chart-body">
+        <canvas id="chart-nov3"></canvas>
+        <div class="chart-loading" id="loading-nov3"><span class="spinner"></span> Loading chart&hellip;</div>
+      </div>
+    </div>
+
+    <div id="panel-ath" class="chart-panel">
+      <div class="chart-header">
+        <span>Median % Since All-Time High</span>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch" style="background:#f0883e"></span>
+            <span>Median</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch faint" style="background:#8b949e"></span>
+            <span>Individual tickers</span>
+          </div>
+        </div>
+        <button class="chart-close" onclick="toggleChart('ath')">&times;</button>
+      </div>
+      <div class="chart-body">
+        <canvas id="chart-ath"></canvas>
+        <div class="chart-loading" id="loading-ath"><span class="spinner"></span> Loading chart&hellip;</div>
+      </div>
+    </div>
+
+    <table id="dashboard-table">
+      <colgroup>
+        <col class="col-rank">
+        <col class="col-ticker">
+        <col class="col-company">
+        <col class="col-close">
+        <col class="col-mcap">
+        <col class="col-nov1">
+        <col class="col-ath">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="sortable" data-sort="string" data-col="1">Ticker<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+          <th class="sortable" data-sort="string" data-col="2">Company<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+          <th class="sortable right" data-sort="number" data-col="3">Last Close<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+          <th class="sortable right" data-sort="number" data-col="4">Market Cap<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+          <th class="sortable right sort-asc" data-sort="number" data-col="5">% Since Nov 3<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+          <th class="sortable right" data-sort="number" data-col="6">% Since ATH<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="rank">{{ loop.index }}</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/{{ row.ticker }}" target="_blank">{{ row.ticker }}</a></td>
+          <td class="company">{{ row.company }}</td>
+          <td class="num" data-value="{{ row.close if row.close is not none else 0 }}">{{ row.close_fmt }}</td>
+          <td class="num" data-value="{{ row.market_cap if row.market_cap is not none else 0 }}">{{ row.mcap_fmt }}</td>
+          <td class="num pct" style="background:{{ row.pct_nov1_style.bg }};color:{{ row.pct_nov1_style.fg }}" data-value="{{ row.pct_nov1 if row.pct_nov1 is not none else -9999 }}" title="{{ row.ref_close_fmt }}">{{ row.pct_nov1_fmt }}</td>
+          <td class="num pct" style="background:{{ row.pct_ath_style.bg }};color:{{ row.pct_ath_style.fg }}" data-value="{{ row.pct_ath if row.pct_ath is not none else -9999 }}" title="{{ row.ath_price_fmt }}">{{ row.pct_ath_fmt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <p>No price data yet. Click "Refresh Data" to fetch prices for {{ ticker_count }} SaaS companies.</p>
+    </div>
+    {% endif %}
+
+    <footer>
+      <span class="meta">{{ ticker_count }} SaaS companies</span>
+      <form action="/fetch" method="post" style="margin:0">
+        <button type="submit" class="refresh-btn">Refresh Data</button>
+      </form>
+    </footer>
+  </div>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // Column sorting
+    // -----------------------------------------------------------------------
+    (function() {
+      var table = document.getElementById('dashboard-table');
+      if (!table) return;
+
+      var thead = table.querySelector('thead');
+      var tbody = table.querySelector('tbody');
+
+      thead.addEventListener('click', function(e) {
+        var th = e.target.closest('th.sortable');
+        if (!th) return;
+
+        var colIdx = parseInt(th.dataset.col, 10);
+        var sortType = th.dataset.sort;
+        var isAsc = th.classList.contains('sort-asc');
+
+        // Toggle: if already asc -> desc, otherwise -> asc
+        var direction = isAsc ? 'desc' : 'asc';
+
+        // Clear all sort classes
+        var allTh = thead.querySelectorAll('th.sortable');
+        for (var i = 0; i < allTh.length; i++) {
+          allTh[i].classList.remove('sort-asc', 'sort-desc');
+        }
+        th.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+
+        // Get rows and sort
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+        rows.sort(function(a, b) {
+          var aCell = a.children[colIdx];
+          var bCell = b.children[colIdx];
+          var aVal, bVal;
+
+          if (sortType === 'number') {
+            aVal = parseFloat(aCell.dataset.value || aCell.textContent.replace(/[$,%+\s]/g, '')) || 0;
+            bVal = parseFloat(bCell.dataset.value || bCell.textContent.replace(/[$,%+\s]/g, '')) || 0;
+          } else {
+            aVal = aCell.textContent.trim().toLowerCase();
+            bVal = bCell.textContent.trim().toLowerCase();
+          }
+
+          if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        // Re-insert rows and renumber rank column
+        for (var j = 0; j < rows.length; j++) {
+          rows[j].children[0].textContent = j + 1;
+          tbody.appendChild(rows[j]);
+        }
+      });
+    })();
+
+    // -----------------------------------------------------------------------
+    // Refresh button with spinner + poll /status
+    // -----------------------------------------------------------------------
+    (function() {
+      var isFetching = {{ 'true' if is_fetching else 'false' }};
+      var form = document.querySelector('footer form');
+      var btn = form ? form.querySelector('.refresh-btn') : null;
+      if (!form || !btn) return;
+
+      function setLoading(loading) {
+        if (loading) {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>Fetching\u2026';
+          startPolling();
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Refresh Data';
+        }
+      }
+
+      var pollTimer = null;
+      function startPolling() {
+        if (pollTimer) return;
+        pollTimer = setInterval(function() {
+          fetch('/status').then(function(r) { return r.json(); }).then(function(data) {
+            if (!data.is_fetching) {
+              clearInterval(pollTimer);
+              pollTimer = null;
+              window.location.reload();
+            }
+          }).catch(function() {});
+        }, 2000);
+      }
+
+      form.addEventListener('submit', function() {
+        setLoading(true);
+      });
+
+      // On page load, if already fetching, show spinner and poll
+      if (isFetching) {
+        setLoading(true);
+      }
+    })();
+
+    // -----------------------------------------------------------------------
+    // Spaghetti charts with hover highlighting
+    // -----------------------------------------------------------------------
+    (function() {
+      var charts = { nov3: null, ath: null };
+      var chartData = { nov3: null, ath: null };
+      var hoveredDataset = { nov3: -1, ath: -1 };
+
+      // Color helpers — each ticker gets a consistent hue
+      var HUES = [200, 220, 180, 260, 300, 340, 30, 60, 150, 120];
+      function tickerHue(idx) { return HUES[idx % HUES.length]; }
+      function tickerColor(idx, alpha) {
+        return 'hsla(' + tickerHue(idx) + ', 30%, 55%, ' + alpha + ')';
+      }
+      function tickerHighlightColor(idx) {
+        return 'hsla(' + tickerHue(idx) + ', 60%, 65%, 0.95)';
+      }
+
+      // Format ISO date "2025-11-03" → "Nov 3"
+      var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      function fmtDate(iso) {
+        var parts = iso.split('-');
+        return MONTHS[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
+      }
+
+      // Reset all ticker lines to faint defaults
+      function resetLineStyles(chart, metric) {
+        var medianIdx = chart.data.datasets.length - 1;
+        var medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
+        chart.data.datasets.forEach(function(ds, i) {
+          if (i < medianIdx) {
+            ds.borderColor = tickerColor(i, 0.15);
+            ds.borderWidth = 1;
+            ds.pointRadius = 0;
+            ds.pointHoverRadius = 0;
+          } else {
+            ds.borderColor = medianColor;
+            ds.borderWidth = 2.5;
+          }
+        });
+      }
+
+      // Highlight a specific ticker line
+      function highlightLine(chart, metric, dsIndex) {
+        var medianIdx = chart.data.datasets.length - 1;
+        var medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
+        chart.data.datasets.forEach(function(ds, i) {
+          if (i === dsIndex) {
+            ds.borderColor = tickerHighlightColor(i);
+            ds.borderWidth = 2.5;
+            ds.pointRadius = 0;
+            ds.pointHoverRadius = 4;
+          } else if (i < medianIdx) {
+            ds.borderColor = tickerColor(i, 0.07);
+            ds.borderWidth = 1;
+            ds.pointRadius = 0;
+            ds.pointHoverRadius = 0;
+          } else {
+            ds.borderColor = medianColor;
+            ds.borderWidth = 2;
+          }
+        });
+      }
+
+      // Toggle chart panel open/closed
+      window.toggleChart = function(metric) {
+        var panel = document.getElementById('panel-' + metric);
+        var badge = document.getElementById('badge-' + metric);
+        if (!panel || !badge) return;
+        var isOpen = panel.classList.contains('open');
+
+        if (isOpen) {
+          panel.classList.remove('open');
+          badge.classList.remove('expanded');
+        } else {
+          panel.classList.add('open');
+          badge.classList.add('expanded');
+          if (!charts[metric]) {
+            loadChart(metric);
+          }
+        }
+      };
+
+      // Fetch data and render chart
+      function loadChart(metric) {
+        var loading = document.getElementById('loading-' + metric);
+        fetch('/api/chart/median-history?metric=' + metric)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            chartData[metric] = data;
+            if (loading) loading.style.display = 'none';
+            renderChart(metric, data);
+          })
+          .catch(function(err) {
+            if (loading) loading.textContent = 'Failed to load chart data';
+            console.error('Chart load error:', err);
+          });
+      }
+
+      function renderChart(metric, data) {
+        var ctx = document.getElementById('chart-' + metric).getContext('2d');
+        var medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
+        var medianLabel = metric === 'nov3' ? 'Median % Since Nov 3' : 'Median % Since ATH';
+        var labels = data.dates.map(fmtDate);
+        var tickerNames = Object.keys(data.tickers).sort();
+        var datasets = [];
+
+        // Individual ticker lines (faint, behind)
+        tickerNames.forEach(function(ticker, idx) {
+          var info = data.tickers[ticker];
+          datasets.push({
+            label: ticker,
+            data: info.values,
+            borderColor: tickerColor(idx, 0.15),
+            borderWidth: 1,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0.3,
+            fill: false
+          });
+        });
+
+        // Median line (on top, thick)
+        datasets.push({
+          label: medianLabel,
+          data: data.median,
+          borderColor: medianColor,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: medianColor,
+          tension: 0.3,
+          fill: false
+        });
+
+        var medianIdx = datasets.length - 1;
+
+        charts[metric] = new Chart(ctx, {
+          type: 'line',
+          data: { labels: labels, datasets: datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            hover: { mode: 'nearest', intersect: false, axis: 'xy' },
+            onHover: function(event, activeElements, chart) {
+              var canvas = chart.canvas;
+              if (!activeElements || activeElements.length === 0) {
+                if (hoveredDataset[metric] !== -1) {
+                  hoveredDataset[metric] = -1;
+                  resetLineStyles(chart, metric);
+                  chart.update('none');
+                  canvas.style.cursor = 'default';
+                }
+                return;
+              }
+              // Find nearest non-median line
+              var nearest = null;
+              for (var i = 0; i < activeElements.length; i++) {
+                if (activeElements[i].datasetIndex < medianIdx) {
+                  nearest = activeElements[i];
+                  break;
+                }
+              }
+              if (!nearest) {
+                if (hoveredDataset[metric] !== -1) {
+                  hoveredDataset[metric] = -1;
+                  resetLineStyles(chart, metric);
+                  chart.update('none');
+                  canvas.style.cursor = 'default';
+                }
+                return;
+              }
+              var dsIdx = nearest.datasetIndex;
+              if (hoveredDataset[metric] === dsIdx) return;
+              hoveredDataset[metric] = dsIdx;
+              highlightLine(chart, metric, dsIdx);
+              chart.update('none');
+              canvas.style.cursor = 'pointer';
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#161b22',
+                titleColor: '#c9d1d9',
+                bodyColor: '#c9d1d9',
+                borderColor: '#30363d',
+                borderWidth: 1,
+                displayColors: true,
+                filter: function(tooltipItem) {
+                  if (tooltipItem.datasetIndex === medianIdx) return true;
+                  return tooltipItem.datasetIndex === hoveredDataset[metric];
+                },
+                callbacks: {
+                  label: function(ctx) {
+                    var name = ctx.dataset.label;
+                    var val = ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A';
+                    if (ctx.datasetIndex === medianIdx) return 'Median: ' + val;
+                    return name + ': ' + val;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#8b949e',
+                  maxTicksLimit: 12,
+                  maxRotation: 0,
+                  font: { family: "'IBM Plex Mono', monospace", size: 10 }
+                },
+                grid: { color: '#21262d' }
+              },
+              y: {
+                ticks: {
+                  color: '#8b949e',
+                  callback: function(val) { return val.toFixed(0) + '%'; },
+                  font: { family: "'IBM Plex Mono', monospace", size: 10 }
+                },
+                grid: { color: '#21262d' }
+              }
+            }
+          }
+        });
+
+        // Reset highlights on mouse leave
+        charts[metric].canvas.addEventListener('mouseleave', function() {
+          if (hoveredDataset[metric] !== -1) {
+            hoveredDataset[metric] = -1;
+            resetLineStyles(charts[metric], metric);
+            charts[metric].update('none');
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

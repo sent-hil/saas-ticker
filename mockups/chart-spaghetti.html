@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaaS Ticker Dashboard — Chart Mockup (Spaghetti)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 24px 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    h1 { font-size: 24px; font-weight: 600; color: #e6edf3; margin-bottom: 4px; letter-spacing: -0.5px; }
+    .subtitle { font-size: 13px; color: #7d8590; }
+    .last-updated { font-size: 11px; color: #484f58; white-space: nowrap; padding-top: 6px; }
+    .variant-label { font-size: 11px; color: #f0883e; margin-top: 4px; }
+
+    /* Summary bar */
+    .summary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 24px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+    }
+
+    .summary-metric {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .summary-metric .label {
+      font-size: 11px;
+      color: #7d8590;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-metric .value {
+      font-size: 14px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.15s ease;
+      position: relative;
+    }
+
+    .summary-metric .value:hover {
+      opacity: 0.85;
+    }
+
+    .summary-metric .value .arrow {
+      font-size: 9px;
+      margin-left: 4px;
+      opacity: 0.5;
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+
+    .summary-metric .value.expanded .arrow {
+      transform: rotate(180deg);
+    }
+
+    /* Chart panels */
+    .chart-panel {
+      display: none;
+      margin-bottom: 12px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .chart-panel.open {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      border-bottom: 1px solid #21262d;
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 10px;
+      color: #7d8590;
+    }
+
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .chart-legend-swatch {
+      width: 16px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .chart-legend-swatch.faint {
+      height: 1px;
+      opacity: 0.4;
+    }
+
+    .chart-close {
+      background: none;
+      border: none;
+      color: #484f58;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.15s ease;
+    }
+
+    .chart-close:hover {
+      color: #f85149;
+    }
+
+    .chart-body {
+      padding: 16px;
+      height: 300px;
+      position: relative;
+    }
+
+    .placeholder-note {
+      text-align: center;
+      padding: 40px 20px;
+      color: #484f58;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SaaS Ticker Dashboard</h1>
+        <p class="subtitle">Performance snapshot &mdash; Since Nov 3, 2025</p>
+        <p class="variant-label">Mockup variant B: Median line + individual ticker spaghetti</p>
+      </div>
+      <span class="last-updated">Last updated: Feb 13, 2026</span>
+    </header>
+
+    <div class="summary-bar">
+      <div class="summary-metric">
+        <span class="label">Median % Since Nov 3</span>
+        <span class="value" id="badge-nov3" style="background:rgba(220,50,47,0.20);color:#c9d1d9" onclick="toggleChart('nov3')">
+          -23.7%<span class="arrow">&#9660;</span>
+        </span>
+      </div>
+      <div class="summary-metric">
+        <span class="label">Median % Since ATH</span>
+        <span class="value" id="badge-ath" style="background:rgba(220,50,47,0.28);color:#fff" onclick="toggleChart('ath')">
+          -43.1%<span class="arrow">&#9660;</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Chart panels -->
+    <div id="panel-nov3" class="chart-panel">
+      <div class="chart-header">
+        <span>Median % Since Nov 3, 2025</span>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch" style="background:#f85149"></span>
+            <span>Median</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch faint" style="background:#8b949e"></span>
+            <span>Individual tickers</span>
+          </div>
+        </div>
+        <button class="chart-close" onclick="toggleChart('nov3')">&times;</button>
+      </div>
+      <div class="chart-body">
+        <canvas id="chart-nov3"></canvas>
+      </div>
+    </div>
+
+    <div id="panel-ath" class="chart-panel">
+      <div class="chart-header">
+        <span>Median % Since All-Time High</span>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch" style="background:#f0883e"></span>
+            <span>Median</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch faint" style="background:#8b949e"></span>
+            <span>Individual tickers</span>
+          </div>
+        </div>
+        <button class="chart-close" onclick="toggleChart('ath')">&times;</button>
+      </div>
+      <div class="chart-body">
+        <canvas id="chart-ath"></canvas>
+      </div>
+    </div>
+
+    <p class="placeholder-note">(Table rows omitted in this chart mockup &mdash; click the badges above to toggle charts)</p>
+  </div>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // Sample data: ~72 trading days, Nov 3 2025 -> Feb 13 2026
+    // -----------------------------------------------------------------------
+    const SAMPLE_DATES = [
+      "Nov 3","Nov 4","Nov 5","Nov 6","Nov 7",
+      "Nov 10","Nov 11","Nov 12","Nov 13","Nov 14",
+      "Nov 17","Nov 18","Nov 19","Nov 20","Nov 21",
+      "Nov 24","Nov 25","Nov 26","Nov 28",
+      "Dec 1","Dec 2","Dec 3","Dec 4","Dec 5",
+      "Dec 8","Dec 9","Dec 10","Dec 11","Dec 12",
+      "Dec 15","Dec 16","Dec 17","Dec 18","Dec 19",
+      "Dec 22","Dec 23","Dec 24","Dec 26",
+      "Dec 29","Dec 30","Dec 31",
+      "Jan 2","Jan 3","Jan 5","Jan 6","Jan 7","Jan 8","Jan 9",
+      "Jan 12","Jan 13","Jan 14","Jan 15","Jan 16",
+      "Jan 20","Jan 21","Jan 22","Jan 23",
+      "Jan 26","Jan 27","Jan 28","Jan 29","Jan 30",
+      "Feb 3","Feb 4","Feb 5","Feb 6","Feb 7",
+      "Feb 10","Feb 11","Feb 12","Feb 13"
+    ];
+
+    // Median % since Nov 3
+    const SAMPLE_NOV3 = [
+      0.0, -0.8, -1.5, -0.9, -2.1,
+      -3.4, -2.8, -4.1, -5.2, -4.6,
+      -5.8, -6.5, -7.1, -6.2, -7.8,
+      -8.5, -9.1, -8.3, -9.7,
+      -10.2, -11.5, -10.8, -12.1, -11.4,
+      -13.2, -12.6, -14.1, -15.3, -14.5,
+      -15.8, -16.2, -17.5, -16.8, -18.1,
+      -17.4, -18.6, -17.2, -18.9,
+      -19.5, -18.8, -20.1,
+      -19.4, -20.8, -21.5, -20.2, -21.8, -22.4, -20.9,
+      -21.6, -22.8, -21.3, -23.1, -22.5,
+      -23.8, -22.9, -24.2, -23.5,
+      -24.8, -23.6, -25.1, -24.3, -25.8,
+      -24.5, -25.2, -23.8, -24.9, -25.5,
+      -24.1, -23.4, -24.2, -23.7
+    ];
+
+    // Median % since ATH
+    const SAMPLE_ATH = [
+      -38.2, -38.8, -39.4, -38.9, -39.8,
+      -40.5, -40.1, -41.2, -41.8, -41.3,
+      -42.1, -42.6, -43.0, -42.3, -43.5,
+      -43.9, -44.3, -43.6, -44.8,
+      -45.1, -45.8, -45.2, -46.3, -45.7,
+      -46.8, -46.2, -47.1, -47.8, -47.2,
+      -48.0, -48.3, -49.1, -48.5, -49.5,
+      -48.8, -49.7, -48.4, -50.1,
+      -50.5, -49.8, -51.0,
+      -50.2, -51.4, -51.9, -50.8, -52.1, -52.5, -51.3,
+      -51.8, -52.8, -51.5, -53.0, -52.4,
+      -53.5, -52.6, -53.8, -53.1,
+      -54.0, -53.2, -54.3, -53.6, -54.8,
+      -53.8, -54.1, -52.9, -53.5, -54.2,
+      -52.5, -42.8, -43.5, -43.1
+    ];
+
+    // -----------------------------------------------------------------------
+    // Generate 35 plausible individual ticker trajectories
+    // Each starts at 0 (Nov 3) and drifts with different slopes + noise
+    // -----------------------------------------------------------------------
+    const TICKER_NAMES = [
+      "CRM","SNOW","DDOG","NET","ZS","CRWD","PANW","FTNT","OKTA","MDB",
+      "TEAM","HUBS","ZI","CFLT","BILL","GTLB","MNDY","DOCN","ESTC","BRZE",
+      "PCOR","TOST","KVYO","S","FRSH","ASAN","SUMO","DT","PATH","FROG",
+      "TWLO","VEEV","NOW","WDAY","ADBE"
+    ];
+
+    // Seeded pseudo-random for reproducibility
+    function seededRandom(seed) {
+      let s = seed;
+      return function() {
+        s = (s * 16807 + 0) % 2147483647;
+        return (s - 1) / 2147483646;
+      };
+    }
+
+    function generateTickerLines(dates, medianData) {
+      const n = dates.length;
+      const tickers = {};
+
+      for (let i = 0; i < TICKER_NAMES.length; i++) {
+        const name = TICKER_NAMES[i];
+        const rng = seededRandom(i * 137 + 42);
+        const line = new Array(n);
+        line[0] = 0;
+
+        // Each ticker gets a drift bias (some bullish, mostly bearish)
+        const driftBias = -0.2 + (rng() - 0.4) * 0.8;  // range roughly -0.6 to +0.1 per day
+        const volatility = 0.5 + rng() * 1.5;           // daily noise scale
+
+        for (let d = 1; d < n; d++) {
+          const noise = (rng() - 0.5) * volatility * 2;
+          line[d] = parseFloat((line[d - 1] + driftBias + noise).toFixed(1));
+        }
+
+        tickers[name] = line;
+      }
+
+      return tickers;
+    }
+
+    // Generate lines for "since Nov 3" chart — individual % changes from 0
+    const TICKER_NOV3 = generateTickerLines(SAMPLE_DATES, SAMPLE_NOV3);
+
+    // Generate lines for "since ATH" chart — individual lines starting from plausible ATH offsets
+    function generateTickerATHLines(dates) {
+      const n = dates.length;
+      const tickers = {};
+
+      for (let i = 0; i < TICKER_NAMES.length; i++) {
+        const name = TICKER_NAMES[i];
+        const rng = seededRandom(i * 251 + 99);
+        const line = new Array(n);
+
+        // Start between -20% and -65% from ATH
+        const startOffset = -20 - rng() * 45;
+        line[0] = parseFloat(startOffset.toFixed(1));
+
+        const driftBias = -0.05 + (rng() - 0.45) * 0.3;
+        const volatility = 0.3 + rng() * 1.0;
+
+        for (let d = 1; d < n; d++) {
+          const noise = (rng() - 0.5) * volatility * 2;
+          line[d] = parseFloat((line[d - 1] + driftBias + noise).toFixed(1));
+        }
+
+        tickers[name] = line;
+      }
+
+      return tickers;
+    }
+
+    const TICKER_ATH = generateTickerATHLines(SAMPLE_DATES);
+
+    // -----------------------------------------------------------------------
+    // Ticker line colors — each ticker gets a consistent hue
+    // -----------------------------------------------------------------------
+    function tickerHue(index) {
+      const hues = [200, 220, 180, 260, 300, 340, 30, 60, 150, 120];
+      return hues[index % hues.length];
+    }
+
+    function tickerColor(index, alpha) {
+      return `hsla(${tickerHue(index)}, 30%, 55%, ${alpha})`;
+    }
+
+    function tickerHighlightColor(index) {
+      return `hsla(${tickerHue(index)}, 60%, 65%, 0.95)`;
+    }
+
+    // -----------------------------------------------------------------------
+    // Chart toggle logic
+    // -----------------------------------------------------------------------
+    const charts = { nov3: null, ath: null };
+    // Track hover state per chart to avoid redundant updates
+    const hoveredDataset = { nov3: -1, ath: -1 };
+
+    function toggleChart(metric) {
+      const panel = document.getElementById('panel-' + metric);
+      const badge = document.getElementById('badge-' + metric);
+      const isOpen = panel.classList.contains('open');
+
+      if (isOpen) {
+        panel.classList.remove('open');
+        badge.classList.remove('expanded');
+      } else {
+        panel.classList.add('open');
+        badge.classList.add('expanded');
+        if (!charts[metric]) {
+          renderChart(metric);
+        }
+      }
+    }
+
+    // Reset all ticker lines to faint defaults
+    function resetLineStyles(chart, metric) {
+      const medianIdx = chart.data.datasets.length - 1;
+      const medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
+
+      chart.data.datasets.forEach(function(ds, i) {
+        if (i < medianIdx) {
+          // Individual ticker line — faint
+          ds.borderColor = tickerColor(i, 0.15);
+          ds.borderWidth = 1;
+          ds.pointRadius = 0;
+          ds.pointHoverRadius = 0;
+        } else {
+          // Median line — always prominent
+          ds.borderColor = medianColor;
+          ds.borderWidth = 2.5;
+        }
+      });
+    }
+
+    // Highlight a specific ticker line
+    function highlightLine(chart, metric, dsIndex) {
+      const medianIdx = chart.data.datasets.length - 1;
+      const medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
+
+      chart.data.datasets.forEach(function(ds, i) {
+        if (i === dsIndex) {
+          // Highlighted ticker — bright, thick
+          ds.borderColor = tickerHighlightColor(i);
+          ds.borderWidth = 2.5;
+          ds.pointRadius = 0;
+          ds.pointHoverRadius = 4;
+        } else if (i < medianIdx) {
+          // Other tickers — dimmed further
+          ds.borderColor = tickerColor(i, 0.07);
+          ds.borderWidth = 1;
+          ds.pointRadius = 0;
+          ds.pointHoverRadius = 0;
+        } else {
+          // Median — stays visible but slightly toned down
+          ds.borderColor = medianColor;
+          ds.borderWidth = 2;
+        }
+      });
+    }
+
+    function renderChart(metric) {
+      const ctx = document.getElementById('chart-' + metric).getContext('2d');
+      const medianData = metric === 'nov3' ? SAMPLE_NOV3 : SAMPLE_ATH;
+      const tickerData = metric === 'nov3' ? TICKER_NOV3 : TICKER_ATH;
+      const medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
+      const medianLabel = metric === 'nov3' ? 'Median % Since Nov 3' : 'Median % Since ATH';
+
+      // Build datasets: 35 faint ticker lines first (drawn behind), then median on top
+      const datasets = [];
+
+      // Individual ticker lines
+      TICKER_NAMES.forEach(function(name, idx) {
+        datasets.push({
+          label: name,
+          data: tickerData[name],
+          borderColor: tickerColor(idx, 0.15),
+          borderWidth: 1,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0.3,
+          fill: false
+        });
+      });
+
+      // Median line (on top, thick, prominent)
+      datasets.push({
+        label: medianLabel,
+        data: medianData,
+        borderColor: medianColor,
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: medianColor,
+        tension: 0.3,
+        fill: false
+      });
+
+      const medianIdx = datasets.length - 1;
+
+      charts[metric] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: SAMPLE_DATES,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          hover: {
+            mode: 'nearest',
+            intersect: false,
+            axis: 'xy'
+          },
+          onHover: function(event, activeElements, chart) {
+            const canvas = chart.canvas;
+
+            if (!activeElements || activeElements.length === 0) {
+              // Mouse left all lines — reset
+              if (hoveredDataset[metric] !== -1) {
+                hoveredDataset[metric] = -1;
+                resetLineStyles(chart, metric);
+                chart.update('none');
+                canvas.style.cursor = 'default';
+              }
+              return;
+            }
+
+            // Find the nearest individual ticker line (not the median)
+            // activeElements is sorted by distance; pick the first non-median one
+            let nearest = null;
+            for (let i = 0; i < activeElements.length; i++) {
+              if (activeElements[i].datasetIndex < medianIdx) {
+                nearest = activeElements[i];
+                break;
+              }
+            }
+
+            if (!nearest) {
+              // Only median is nearby — reset
+              if (hoveredDataset[metric] !== -1) {
+                hoveredDataset[metric] = -1;
+                resetLineStyles(chart, metric);
+                chart.update('none');
+                canvas.style.cursor = 'default';
+              }
+              return;
+            }
+
+            const dsIdx = nearest.datasetIndex;
+            if (hoveredDataset[metric] === dsIdx) return; // already highlighted
+
+            hoveredDataset[metric] = dsIdx;
+            highlightLine(chart, metric, dsIdx);
+            chart.update('none');
+            canvas.style.cursor = 'pointer';
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#161b22',
+              titleColor: '#c9d1d9',
+              bodyColor: '#c9d1d9',
+              borderColor: '#30363d',
+              borderWidth: 1,
+              displayColors: true,
+              // Show median always + the hovered ticker line
+              filter: function(tooltipItem) {
+                if (tooltipItem.datasetIndex === medianIdx) return true;
+                return tooltipItem.datasetIndex === hoveredDataset[metric];
+              },
+              callbacks: {
+                label: function(ctx) {
+                  const name = ctx.dataset.label;
+                  const val = ctx.parsed.y.toFixed(1) + '%';
+                  if (ctx.datasetIndex === medianIdx) {
+                    return 'Median: ' + val;
+                  }
+                  return name + ': ' + val;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                color: '#8b949e',
+                maxTicksLimit: 12,
+                maxRotation: 0,
+                font: { family: "'IBM Plex Mono', monospace", size: 10 }
+              },
+              grid: { color: '#21262d' }
+            },
+            y: {
+              ticks: {
+                color: '#8b949e',
+                callback: function(val) { return val.toFixed(0) + '%'; },
+                font: { family: "'IBM Plex Mono', monospace", size: 10 }
+              },
+              grid: { color: '#21262d' }
+            }
+          }
+        }
+      });
+
+      // Reset highlights when mouse leaves the canvas entirely
+      const canvas = charts[metric].canvas;
+      canvas.addEventListener('mouseleave', function() {
+        if (hoveredDataset[metric] !== -1) {
+          hoveredDataset[metric] = -1;
+          resetLineStyles(charts[metric], metric);
+          charts[metric].update('none');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

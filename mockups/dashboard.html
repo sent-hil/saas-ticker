@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaaS Ticker Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 24px 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #7d8590;
+    }
+
+    .last-updated {
+      font-size: 11px;
+      color: #484f58;
+      white-space: nowrap;
+      padding-top: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    colgroup col.col-rank    { width: 36px; }
+    colgroup col.col-ticker  { width: 72px; }
+    colgroup col.col-company { width: 160px; }
+    colgroup col.col-close   { width: 100px; }
+    colgroup col.col-mcap    { width: 100px; }
+    colgroup col.col-nov1    { width: 155px; }
+    colgroup col.col-ath     { width: 155px; }
+
+    thead th {
+      background: #161b22;
+      color: #7d8590;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 10px 12px;
+      border-bottom: 2px solid #30363d;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    thead th.right {
+      text-align: right;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #21262d;
+      transition: background 0.1s ease;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    tbody tr:hover {
+      background: #1c2333;
+    }
+
+    td {
+      padding: 7px 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    td.rank {
+      color: #484f58;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    td.ticker {
+      font-weight: 600;
+    }
+
+    td.ticker a {
+      color: #58a6ff;
+      text-decoration: none;
+    }
+
+    td.ticker a:hover {
+      text-decoration: underline;
+    }
+
+    td.company {
+      color: #8b949e;
+    }
+
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    td.pct {
+      font-weight: 600;
+      border-radius: 2px;
+    }
+
+    footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer .meta {
+      font-size: 11px;
+      color: #484f58;
+    }
+
+    footer .refresh-btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 6px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    footer .refresh-btn:hover {
+      background: #30363d;
+    }
+
+    /* Summary metrics bar */
+    .summary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 24px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+    }
+
+    .summary-metric {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .summary-metric .label {
+      font-size: 11px;
+      color: #7d8590;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-metric .value {
+      font-size: 14px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SaaS Ticker Dashboard</h1>
+        <p class="subtitle">Performance snapshot &mdash; Since Nov 1, 2025</p>
+      </div>
+      <span class="last-updated">Last updated: Feb 13, 2026 4:32 PM</span>
+    </header>
+
+    <div class="summary-bar">
+      <div class="summary-metric">
+        <span class="label">Median % Since Nov 1</span>
+        <span class="value" style="background:rgba(220,50,47,0.20);color:#c9d1d9">-23.7%</span>
+      </div>
+      <div class="summary-metric">
+        <span class="label">Median % Since ATH</span>
+        <span class="value" style="background:rgba(220,50,47,0.28);color:#fff">-43.1%</span>
+      </div>
+    </div>
+
+    <table>
+      <colgroup>
+        <col class="col-rank">
+        <col class="col-ticker">
+        <col class="col-company">
+        <col class="col-close">
+        <col class="col-mcap">
+        <col class="col-nov1">
+        <col class="col-ath">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ticker</th>
+          <th>Company</th>
+          <th class="right">Last Close</th>
+          <th class="right">Market Cap</th>
+          <th class="right">% Since Nov 1</th>
+          <th class="right">% Since ATH</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rank">1</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/FSLY" target="_blank">FSLY</a></td>
+          <td class="company">Fastly</td>
+          <td class="num">$7.18</td>
+          <td class="num">$0.9B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.53);color:#fff">-62.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff">-95.8%</td>
+        </tr>
+        <tr>
+          <td class="rank">2</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/ASAN" target="_blank">ASAN</a></td>
+          <td class="company">Asana</td>
+          <td class="num">$12.45</td>
+          <td class="num">$2.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.46);color:#fff">-53.7%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff">-91.2%</td>
+        </tr>
+        <tr>
+          <td class="rank">3</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/ZM" target="_blank">ZM</a></td>
+          <td class="company">Zoom</td>
+          <td class="num">$52.30</td>
+          <td class="num">$16.1B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.42);color:#fff">-48.9%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff">-88.5%</td>
+        </tr>
+        <tr>
+          <td class="rank">4</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/BRZE" target="_blank">BRZE</a></td>
+          <td class="company">Braze</td>
+          <td class="num">$31.20</td>
+          <td class="num">$3.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.40);color:#fff">-47.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.38);color:#fff">-58.3%</td>
+        </tr>
+        <tr>
+          <td class="rank">5</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/MDB" target="_blank">MDB</a></td>
+          <td class="company">MongoDB</td>
+          <td class="num">$148.50</td>
+          <td class="num">$10.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.38);color:#fff">-44.6%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.47);color:#fff">-72.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">6</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/SNOW" target="_blank">SNOW</a></td>
+          <td class="company">Snowflake</td>
+          <td class="num">$122.75</td>
+          <td class="num">$41.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.36);color:#fff">-42.3%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.46);color:#fff">-71.8%</td>
+        </tr>
+        <tr>
+          <td class="rank">7</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/GTLB" target="_blank">GTLB</a></td>
+          <td class="company">GitLab</td>
+          <td class="num">$38.90</td>
+          <td class="num">$6.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.35);color:#fff">-41.0%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.51);color:#fff">-78.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">8</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/CFLT" target="_blank">CFLT</a></td>
+          <td class="company">Confluent</td>
+          <td class="num">$18.60</td>
+          <td class="num">$5.9B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.34);color:#fff">-39.5%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.49);color:#fff">-75.2%</td>
+        </tr>
+        <tr>
+          <td class="rank">9</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/ZETA" target="_blank">ZETA</a></td>
+          <td class="company">Zeta</td>
+          <td class="num">$10.85</td>
+          <td class="num">$2.3B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.33);color:#fff">-38.2%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.41);color:#fff">-64.1%</td>
+        </tr>
+        <tr>
+          <td class="rank">10</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/KVYO" target="_blank">KVYO</a></td>
+          <td class="company">Klaviyo</td>
+          <td class="num">$22.10</td>
+          <td class="num">$6.1B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.32);color:#fff">-36.8%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.28);color:#fff">-42.5%</td>
+        </tr>
+        <tr>
+          <td class="rank">11</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/TWLO" target="_blank">TWLO</a></td>
+          <td class="company">Twilio</td>
+          <td class="num">$68.40</td>
+          <td class="num">$11.5B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.30);color:#fff">-35.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff">-84.3%</td>
+        </tr>
+        <tr>
+          <td class="rank">12</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/FIG" target="_blank">FIG</a></td>
+          <td class="company">Figma</td>
+          <td class="num">$42.50</td>
+          <td class="num">$12.5B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.29);color:#fff">-33.6%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.22);color:#c9d1d9">-33.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">13</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/DDOG" target="_blank">DDOG</a></td>
+          <td class="company">Datadog</td>
+          <td class="num">$108.30</td>
+          <td class="num">$35.4B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.27);color:#fff">-31.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.34);color:#fff">-52.7%</td>
+        </tr>
+        <tr>
+          <td class="rank">14</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/TTD" target="_blank">TTD</a></td>
+          <td class="company">Trade Desk</td>
+          <td class="num">$68.20</td>
+          <td class="num">$33.1B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.26);color:#fff">-29.8%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.36);color:#fff">-55.9%</td>
+        </tr>
+        <tr>
+          <td class="rank">15</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/HUBS" target="_blank">HUBS</a></td>
+          <td class="company">HubSpot</td>
+          <td class="num">$478.60</td>
+          <td class="num">$24.6B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.24);color:#c9d1d9">-27.5%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.25);color:#c9d1d9">-38.2%</td>
+        </tr>
+        <tr>
+          <td class="rank">16</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/ESTC" target="_blank">ESTC</a></td>
+          <td class="company">Elastic</td>
+          <td class="num">$82.10</td>
+          <td class="num">$8.4B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.23);color:#c9d1d9">-26.3%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.31);color:#fff">-48.5%</td>
+        </tr>
+        <tr>
+          <td class="rank">17</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/IOT" target="_blank">IOT</a></td>
+          <td class="company">Samsara</td>
+          <td class="num">$32.80</td>
+          <td class="num">$18.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.21);color:#c9d1d9">-24.9%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.20);color:#c9d1d9">-31.0%</td>
+        </tr>
+        <tr>
+          <td class="rank">18</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/WDAY" target="_blank">WDAY</a></td>
+          <td class="company">Workday</td>
+          <td class="num">$198.40</td>
+          <td class="num">$52.5B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.20);color:#c9d1d9">-23.7%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.33);color:#fff">-51.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">19</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/DUOL" target="_blank">DUOL</a></td>
+          <td class="company">Duolingo</td>
+          <td class="num">$248.90</td>
+          <td class="num">$10.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.19);color:#c9d1d9">-22.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.20);color:#c9d1d9">-30.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">20</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/TEAM" target="_blank">TEAM</a></td>
+          <td class="company">Atlassian</td>
+          <td class="num">$198.50</td>
+          <td class="num">$50.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.18);color:#c9d1d9">-20.5%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.31);color:#fff">-47.3%</td>
+        </tr>
+        <tr>
+          <td class="rank">21</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/MNDY" target="_blank">MNDY</a></td>
+          <td class="company">monday.com</td>
+          <td class="num">$218.70</td>
+          <td class="num">$10.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.16);color:#c9d1d9">-19.2%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.24);color:#c9d1d9">-36.8%</td>
+        </tr>
+        <tr>
+          <td class="rank">22</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/DOCU" target="_blank">DOCU</a></td>
+          <td class="company">DocuSign</td>
+          <td class="num">$72.30</td>
+          <td class="num">$14.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.15);color:#c9d1d9">-17.8%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.50);color:#fff">-77.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">23</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/ADBE" target="_blank">ADBE</a></td>
+          <td class="company">Adobe</td>
+          <td class="num">$398.20</td>
+          <td class="num">$176.5B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.14);color:#c9d1d9">-16.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.28);color:#fff">-43.1%</td>
+        </tr>
+        <tr>
+          <td class="rank">24</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/CRM" target="_blank">CRM</a></td>
+          <td class="company">Salesforce</td>
+          <td class="num">$268.40</td>
+          <td class="num">$256.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.13);color:#c9d1d9">-14.9%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.19);color:#c9d1d9">-28.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">25</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/WIX" target="_blank">WIX</a></td>
+          <td class="company">WIX</td>
+          <td class="num">$168.90</td>
+          <td class="num">$9.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.12);color:#c9d1d9">-13.6%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.13);color:#c9d1d9">-19.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">26</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/GWRE" target="_blank">GWRE</a></td>
+          <td class="company">Guidewire</td>
+          <td class="num">$158.20</td>
+          <td class="num">$13.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.10);color:#c9d1d9">-12.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.10);color:#c9d1d9">-14.8%</td>
+        </tr>
+        <tr>
+          <td class="rank">27</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/VEEV" target="_blank">VEEV</a></td>
+          <td class="company">Veeva</td>
+          <td class="num">$218.30</td>
+          <td class="num">$33.5B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.09);color:#c9d1d9">-10.7%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.28);color:#fff">-42.9%</td>
+        </tr>
+        <tr>
+          <td class="rank">28</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/INTU" target="_blank">INTU</a></td>
+          <td class="company">Intuit</td>
+          <td class="num">$572.40</td>
+          <td class="num">$159.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9">-9.3%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.17);color:#c9d1d9">-26.5%</td>
+        </tr>
+        <tr>
+          <td class="rank">29</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/ADSK" target="_blank">ADSK</a></td>
+          <td class="company">Autodesk</td>
+          <td class="num">$248.60</td>
+          <td class="num">$53.4B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.07);color:#c9d1d9">-8.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.18);color:#c9d1d9">-27.8%</td>
+        </tr>
+        <tr>
+          <td class="rank">30</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/CLBT" target="_blank">CLBT</a></td>
+          <td class="company">Cellebrite</td>
+          <td class="num">$24.80</td>
+          <td class="num">$5.1B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.05);color:#c9d1d9">-5.7%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9">-12.3%</td>
+        </tr>
+        <tr>
+          <td class="rank">31</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/CVLT" target="_blank">CVLT</a></td>
+          <td class="company">Commvault</td>
+          <td class="num">$152.60</td>
+          <td class="num">$7.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.03);color:#c9d1d9">-3.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.05);color:#c9d1d9">-8.1%</td>
+        </tr>
+        <tr>
+          <td class="rank">32</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/DOCS" target="_blank">DOCS</a></td>
+          <td class="company">Doximity</td>
+          <td class="num">$48.90</td>
+          <td class="num">$9.4B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.01);color:#c9d1d9">-1.2%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.36);color:#fff">-55.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">33</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/NOW" target="_blank">NOW</a></td>
+          <td class="company">ServiceNow</td>
+          <td class="num">$912.50</td>
+          <td class="num">$188.4B</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.05);color:#c9d1d9">+2.8%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.03);color:#c9d1d9">-5.2%</td>
+        </tr>
+        <tr>
+          <td class="rank">34</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/SAP" target="_blank">SAP</a></td>
+          <td class="company">SAP</td>
+          <td class="num">$248.70</td>
+          <td class="num">$305.2B</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.08);color:#c9d1d9">+4.5%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.01);color:#c9d1d9">-2.1%</td>
+        </tr>
+        <tr>
+          <td class="rank">35</td>
+          <td class="ticker"><a href="https://finance.yahoo.com/quote/ADP" target="_blank">ADP</a></td>
+          <td class="company">ADP</td>
+          <td class="num">$298.40</td>
+          <td class="num">$122.6B</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.11);color:#c9d1d9">+6.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.02);color:#c9d1d9">-3.8%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <footer>
+      <span class="meta">35 SaaS companies &middot; Static mockup with sample data</span>
+      <button class="refresh-btn">Refresh Data</button>
+    </footer>
+  </div>
+</body>
+</html>
