@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaaS Ticker Dashboard — Mockup: Index Benchmarks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 24px 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    h1 { font-size: 24px; font-weight: 600; color: #e6edf3; margin-bottom: 4px; letter-spacing: -0.5px; }
+    .subtitle { font-size: 13px; color: #7d8590; }
+    .last-updated { font-size: 11px; color: #484f58; white-space: nowrap; padding-top: 6px; }
+    .variant-label { font-size: 11px; color: #f0883e; margin-top: 4px; }
+
+    /* Summary bar */
+    .summary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 20px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      flex-wrap: wrap;
+    }
+
+    .summary-metric {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .summary-metric .label {
+      font-size: 11px;
+      color: #7d8590;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-metric .value {
+      font-size: 14px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.15s ease;
+      position: relative;
+    }
+
+    .summary-metric .value:hover {
+      opacity: 0.85;
+    }
+
+    .summary-metric .value .arrow {
+      font-size: 9px;
+      margin-left: 4px;
+      opacity: 0.5;
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+
+    .summary-metric .value.expanded .arrow {
+      transform: rotate(180deg);
+    }
+
+    /* Separator between SaaS median and index benchmarks */
+    .summary-sep {
+      width: 1px;
+      height: 20px;
+      background: #30363d;
+    }
+
+    /* Index badges — not clickable, just context */
+    .index-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .index-badge .idx-label {
+      font-size: 11px;
+      color: #7d8590;
+    }
+
+    .index-badge .idx-value {
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Chart panels */
+    .chart-panel {
+      display: none;
+      margin-bottom: 12px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .chart-panel.open {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      border-bottom: 1px solid #21262d;
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 10px;
+      color: #7d8590;
+    }
+
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .chart-legend-swatch {
+      width: 16px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .chart-legend-swatch.faint {
+      height: 1px;
+      opacity: 0.4;
+    }
+
+    .chart-legend-swatch.dashed {
+      height: 0;
+      border-top: 2px dashed;
+    }
+
+    .chart-close {
+      background: none;
+      border: none;
+      color: #484f58;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.15s ease;
+    }
+
+    .chart-close:hover {
+      color: #f85149;
+    }
+
+    .chart-body {
+      padding: 16px;
+      height: 300px;
+      position: relative;
+    }
+
+    .placeholder-note {
+      text-align: center;
+      padding: 40px 20px;
+      color: #484f58;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SaaS Ticker Dashboard</h1>
+        <p class="subtitle">Performance snapshot &mdash; Since Nov 3, 2025</p>
+        <p class="variant-label">Mockup: Index benchmarks on summary bar + chart</p>
+      </div>
+      <span class="last-updated">Last updated: Feb 14, 2026</span>
+    </header>
+
+    <!-- Summary bar with SaaS median + index benchmarks -->
+    <div class="summary-bar">
+      <div class="summary-metric">
+        <span class="label">Median % Since Nov 3</span>
+        <span class="value" id="badge-nov3" style="color:#c9d1d9" onclick="toggleChart('nov3')">
+          -28.1%<span class="arrow">&#9660;</span>
+        </span>
+      </div>
+
+      <div class="summary-sep"></div>
+
+      <div class="index-badge">
+        <span class="idx-label">S&P 500</span>
+        <span class="idx-value" style="color:#58a6ff">-3.2%</span>
+      </div>
+      <div class="index-badge">
+        <span class="idx-label">Nasdaq</span>
+        <span class="idx-value" style="color:#d2a8ff">-5.1%</span>
+      </div>
+      <div class="index-badge">
+        <span class="idx-label">Dow</span>
+        <span class="idx-value" style="color:#7ee787">-1.8%</span>
+      </div>
+    </div>
+
+    <!-- Chart panel for "since Nov 3" -->
+    <div id="panel-nov3" class="chart-panel">
+      <div class="chart-header">
+        <span>% Since Nov 3, 2025</span>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch" style="background:#f85149"></span>
+            <span>SaaS Median</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#58a6ff"></span>
+            <span>S&P 500</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#d2a8ff"></span>
+            <span>Nasdaq</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#7ee787"></span>
+            <span>Dow</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch faint" style="background:#8b949e"></span>
+            <span>Individual tickers</span>
+          </div>
+        </div>
+        <button class="chart-close" onclick="toggleChart('nov3')">&times;</button>
+      </div>
+      <div class="chart-body">
+        <canvas id="chart-nov3"></canvas>
+      </div>
+    </div>
+
+    <p class="placeholder-note">(Table rows omitted &mdash; click the median badge above to toggle chart)</p>
+  </div>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // Sample dates
+    // -----------------------------------------------------------------------
+    const SAMPLE_DATES = [
+      "Nov 3","Nov 4","Nov 5","Nov 6","Nov 7",
+      "Nov 10","Nov 11","Nov 12","Nov 13","Nov 14",
+      "Nov 17","Nov 18","Nov 19","Nov 20","Nov 21",
+      "Nov 24","Nov 25","Nov 26","Nov 28",
+      "Dec 1","Dec 2","Dec 3","Dec 4","Dec 5",
+      "Dec 8","Dec 9","Dec 10","Dec 11","Dec 12",
+      "Dec 15","Dec 16","Dec 17","Dec 18","Dec 19",
+      "Dec 22","Dec 23","Dec 24","Dec 26",
+      "Dec 29","Dec 30","Dec 31",
+      "Jan 2","Jan 3","Jan 5","Jan 6","Jan 7","Jan 8","Jan 9",
+      "Jan 12","Jan 13","Jan 14","Jan 15","Jan 16",
+      "Jan 20","Jan 21","Jan 22","Jan 23",
+      "Jan 26","Jan 27","Jan 28","Jan 29","Jan 30",
+      "Feb 3","Feb 4","Feb 5","Feb 6","Feb 7",
+      "Feb 10","Feb 11","Feb 12","Feb 13"
+    ];
+
+    // SaaS median % since Nov 3 — drifting down to -28%
+    const SAMPLE_MEDIAN = [
+      0.0, -0.8, -1.5, -0.9, -2.1,
+      -3.4, -2.8, -4.1, -5.2, -4.6,
+      -5.8, -6.5, -7.1, -6.2, -7.8,
+      -8.5, -9.1, -8.3, -9.7,
+      -10.2, -11.5, -10.8, -12.1, -11.4,
+      -13.2, -12.6, -14.1, -15.3, -14.5,
+      -15.8, -16.2, -17.5, -16.8, -18.1,
+      -17.4, -18.6, -17.2, -18.9,
+      -19.5, -18.8, -20.1,
+      -19.4, -20.8, -21.5, -20.2, -21.8, -22.4, -20.9,
+      -21.6, -22.8, -21.3, -23.1, -22.5,
+      -23.8, -22.9, -24.2, -23.5,
+      -24.8, -23.6, -25.1, -24.3, -25.8,
+      -24.5, -25.2, -23.8, -24.9, -25.5,
+      -26.1, -27.4, -28.2, -28.1
+    ];
+
+    // S&P 500 (SPY) — mild decline ~-3%
+    const SAMPLE_SPY = [
+      0.0, 0.3, 0.1, 0.5, 0.2,
+      -0.3, 0.1, -0.5, -0.8, -0.3,
+      -0.6, -1.0, -0.7, -0.2, -0.9,
+      -1.2, -1.5, -1.1, -1.8,
+      -1.5, -2.0, -1.7, -2.3, -1.9,
+      -2.4, -2.0, -2.6, -2.9, -2.5,
+      -2.8, -3.1, -3.5, -3.0, -3.6,
+      -3.2, -3.8, -3.1, -3.5,
+      -3.2, -2.8, -3.1,
+      -2.5, -2.9, -3.2, -2.6, -3.0, -3.4, -2.8,
+      -3.1, -3.5, -2.9, -3.3, -3.0,
+      -3.5, -3.1, -3.6, -3.2,
+      -3.5, -3.0, -3.4, -2.9, -3.3,
+      -3.0, -3.2, -2.8, -3.1, -3.4,
+      -3.0, -2.8, -3.1, -3.2
+    ];
+
+    // Nasdaq (QQQ) — moderate decline ~-5%
+    const SAMPLE_QQQ = [
+      0.0, 0.1, -0.3, 0.2, -0.5,
+      -1.0, -0.6, -1.3, -1.8, -1.2,
+      -1.6, -2.1, -1.8, -1.3, -2.2,
+      -2.5, -2.9, -2.3, -3.1,
+      -2.8, -3.4, -3.0, -3.7, -3.2,
+      -3.8, -3.4, -4.0, -4.4, -3.9,
+      -4.2, -4.5, -5.0, -4.5, -5.2,
+      -4.7, -5.3, -4.6, -5.0,
+      -4.7, -4.2, -4.6,
+      -4.0, -4.5, -4.9, -4.2, -4.7, -5.1, -4.4,
+      -4.8, -5.2, -4.5, -5.0, -4.7,
+      -5.2, -4.8, -5.3, -4.9,
+      -5.2, -4.7, -5.1, -4.6, -5.0,
+      -4.7, -5.0, -4.5, -4.8, -5.2,
+      -4.8, -4.5, -5.0, -5.1
+    ];
+
+    // Dow (DIA) — mild decline ~-2%
+    const SAMPLE_DIA = [
+      0.0, 0.4, 0.3, 0.6, 0.3,
+      -0.1, 0.2, -0.2, -0.5, -0.1,
+      -0.4, -0.7, -0.4, 0.0, -0.6,
+      -0.8, -1.1, -0.7, -1.3,
+      -1.0, -1.4, -1.1, -1.6, -1.2,
+      -1.7, -1.3, -1.8, -2.1, -1.7,
+      -1.9, -2.2, -2.5, -2.1, -2.6,
+      -2.2, -2.7, -2.1, -2.5,
+      -2.2, -1.9, -2.1,
+      -1.6, -1.9, -2.2, -1.7, -2.0, -2.3, -1.8,
+      -2.1, -2.4, -1.9, -2.2, -1.9,
+      -2.3, -2.0, -2.4, -2.1,
+      -2.3, -1.9, -2.2, -1.8, -2.1,
+      -1.8, -2.0, -1.6, -1.9, -2.2,
+      -1.9, -1.6, -1.8, -1.8
+    ];
+
+    // -----------------------------------------------------------------------
+    // Generate individual ticker lines (same as before)
+    // -----------------------------------------------------------------------
+    const TICKER_NAMES = [
+      "CRM","SNOW","DDOG","NET","ZS","CRWD","PANW","FTNT","OKTA","MDB",
+      "TEAM","HUBS","ZI","CFLT","BILL","GTLB","MNDY","DOCN","ESTC","BRZE",
+      "PCOR","TOST","KVYO","S","FRSH","ASAN","SUMO","DT","PATH","FROG",
+      "TWLO","VEEV","NOW","WDAY","ADBE"
+    ];
+
+    function seededRandom(seed) {
+      let s = seed;
+      return function() {
+        s = (s * 16807 + 0) % 2147483647;
+        return (s - 1) / 2147483646;
+      };
+    }
+
+    function generateTickerLines(dates) {
+      const n = dates.length;
+      const tickers = {};
+      for (let i = 0; i < TICKER_NAMES.length; i++) {
+        const name = TICKER_NAMES[i];
+        const rng = seededRandom(i * 137 + 42);
+        const line = new Array(n);
+        line[0] = 0;
+        const driftBias = -0.2 + (rng() - 0.4) * 0.8;
+        const volatility = 0.5 + rng() * 1.5;
+        for (let d = 1; d < n; d++) {
+          const noise = (rng() - 0.5) * volatility * 2;
+          line[d] = parseFloat((line[d - 1] + driftBias + noise).toFixed(1));
+        }
+        tickers[name] = line;
+      }
+      return tickers;
+    }
+
+    const TICKER_NOV3 = generateTickerLines(SAMPLE_DATES);
+
+    // -----------------------------------------------------------------------
+    // Color helpers
+    // -----------------------------------------------------------------------
+    const HUES = [200, 220, 180, 260, 300, 340, 30, 60, 150, 120];
+    function tickerHue(idx) { return HUES[idx % HUES.length]; }
+    function tickerColor(idx, alpha) {
+      return `hsla(${tickerHue(idx)}, 30%, 55%, ${alpha})`;
+    }
+    function tickerHighlightColor(idx) {
+      return `hsla(${tickerHue(idx)}, 60%, 65%, 0.95)`;
+    }
+
+    // Index line colors
+    const INDEX_COLORS = {
+      SPY: '#58a6ff',   // blue
+      QQQ: '#d2a8ff',   // purple
+      DIA: '#7ee787'    // green
+    };
+
+    // -----------------------------------------------------------------------
+    // Chart logic
+    // -----------------------------------------------------------------------
+    let chart = null;
+    let hoveredDs = -1;
+    // Track the range of dataset indices
+    let tickerStartIdx = 0;
+    let tickerEndIdx = 0;    // exclusive — first non-ticker index
+    let indexStartIdx = 0;
+    let indexEndIdx = 0;
+    let medianIdx = 0;
+
+    function toggleChart(metric) {
+      const panel = document.getElementById('panel-nov3');
+      const badge = document.getElementById('badge-nov3');
+      const isOpen = panel.classList.contains('open');
+
+      if (isOpen) {
+        panel.classList.remove('open');
+        badge.classList.remove('expanded');
+      } else {
+        panel.classList.add('open');
+        badge.classList.add('expanded');
+        if (!chart) renderChart();
+      }
+    }
+
+    function resetLineStyles() {
+      chart.data.datasets.forEach(function(ds, i) {
+        if (i >= tickerStartIdx && i < tickerEndIdx) {
+          ds.borderColor = tickerColor(i - tickerStartIdx, 0.15);
+          ds.borderWidth = 1;
+          ds.pointRadius = 0;
+          ds.pointHoverRadius = 0;
+        } else if (i >= indexStartIdx && i < indexEndIdx) {
+          // Index lines — always visible, dashed
+          ds.borderWidth = 2;
+        } else if (i === medianIdx) {
+          ds.borderColor = '#f85149';
+          ds.borderWidth = 2.5;
+        }
+      });
+    }
+
+    function highlightLine(dsIndex) {
+      chart.data.datasets.forEach(function(ds, i) {
+        if (i === dsIndex) {
+          ds.borderColor = tickerHighlightColor(i - tickerStartIdx);
+          ds.borderWidth = 2.5;
+          ds.pointRadius = 0;
+          ds.pointHoverRadius = 4;
+        } else if (i >= tickerStartIdx && i < tickerEndIdx) {
+          ds.borderColor = tickerColor(i - tickerStartIdx, 0.07);
+          ds.borderWidth = 1;
+          ds.pointRadius = 0;
+          ds.pointHoverRadius = 0;
+        } else if (i >= indexStartIdx && i < indexEndIdx) {
+          // Dim index lines slightly when a ticker is highlighted
+          ds.borderWidth = 1.5;
+        } else if (i === medianIdx) {
+          ds.borderColor = '#f85149';
+          ds.borderWidth = 2;
+        }
+      });
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById('chart-nov3').getContext('2d');
+      const datasets = [];
+
+      // 1. Individual ticker lines (faint)
+      tickerStartIdx = 0;
+      TICKER_NAMES.forEach(function(name, idx) {
+        datasets.push({
+          label: name,
+          data: TICKER_NOV3[name],
+          borderColor: tickerColor(idx, 0.15),
+          borderWidth: 1,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0.3,
+          fill: false
+        });
+      });
+      tickerEndIdx = datasets.length;
+
+      // 2. Index benchmark lines (dashed, prominent)
+      indexStartIdx = datasets.length;
+      const indices = [
+        { label: 'S&P 500', data: SAMPLE_SPY, color: INDEX_COLORS.SPY },
+        { label: 'Nasdaq',  data: SAMPLE_QQQ, color: INDEX_COLORS.QQQ },
+        { label: 'Dow',     data: SAMPLE_DIA, color: INDEX_COLORS.DIA }
+      ];
+      indices.forEach(function(idx) {
+        datasets.push({
+          label: idx.label,
+          data: idx.data,
+          borderColor: idx.color,
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: idx.color,
+          tension: 0.3,
+          fill: false
+        });
+      });
+      indexEndIdx = datasets.length;
+
+      // 3. SaaS Median line (solid, on top)
+      medianIdx = datasets.length;
+      datasets.push({
+        label: 'SaaS Median',
+        data: SAMPLE_MEDIAN,
+        borderColor: '#f85149',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#f85149',
+        tension: 0.3,
+        fill: false
+      });
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: SAMPLE_DATES, datasets: datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          hover: { mode: 'nearest', intersect: false, axis: 'xy' },
+          onHover: function(event, activeElements, ch) {
+            const canvas = ch.canvas;
+            if (!activeElements || activeElements.length === 0) {
+              if (hoveredDs !== -1) {
+                hoveredDs = -1;
+                resetLineStyles();
+                ch.update('none');
+                canvas.style.cursor = 'default';
+              }
+              return;
+            }
+            // Find nearest individual ticker line
+            let nearest = null;
+            for (let i = 0; i < activeElements.length; i++) {
+              const di = activeElements[i].datasetIndex;
+              if (di >= tickerStartIdx && di < tickerEndIdx) {
+                nearest = activeElements[i];
+                break;
+              }
+            }
+            if (!nearest) {
+              if (hoveredDs !== -1) {
+                hoveredDs = -1;
+                resetLineStyles();
+                ch.update('none');
+                canvas.style.cursor = 'default';
+              }
+              return;
+            }
+            const dsIdx = nearest.datasetIndex;
+            if (hoveredDs === dsIdx) return;
+            hoveredDs = dsIdx;
+            highlightLine(dsIdx);
+            ch.update('none');
+            canvas.style.cursor = 'pointer';
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#161b22',
+              titleColor: '#c9d1d9',
+              bodyColor: '#c9d1d9',
+              borderColor: '#30363d',
+              borderWidth: 1,
+              displayColors: true,
+              // Show: median + index lines + hovered ticker
+              filter: function(tooltipItem) {
+                const di = tooltipItem.datasetIndex;
+                if (di === medianIdx) return true;
+                if (di >= indexStartIdx && di < indexEndIdx) return true;
+                return di === hoveredDs;
+              },
+              callbacks: {
+                label: function(ctx) {
+                  const name = ctx.dataset.label;
+                  const val = ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A';
+                  return name + ': ' + val;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                color: '#8b949e',
+                maxTicksLimit: 12,
+                maxRotation: 0,
+                font: { family: "'IBM Plex Mono', monospace", size: 10 }
+              },
+              grid: { color: '#21262d' }
+            },
+            y: {
+              ticks: {
+                color: '#8b949e',
+                callback: function(val) { return val.toFixed(0) + '%'; },
+                font: { family: "'IBM Plex Mono', monospace", size: 10 }
+              },
+              grid: { color: '#21262d' }
+            }
+          }
+        }
+      });
+
+      chart.canvas.addEventListener('mouseleave', function() {
+        if (hoveredDs !== -1) {
+          hoveredDs = -1;
+          resetLineStyles();
+          chart.update('none');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

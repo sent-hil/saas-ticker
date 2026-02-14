@@ -62,6 +62,15 @@ def load_tickers(path: Path) -> dict[str, str]:
 TICKERS: dict[str, str] = load_tickers(CSV_PATH)
 log.info("Loaded %d tickers from %s", len(TICKERS), CSV_PATH)
 
+# Index benchmarks (not SaaS — for comparison on charts/summary bar)
+INDEX_TICKERS: dict[str, str] = {
+    "SPY": "S&P 500",
+    "QQQ": "Nasdaq",
+    "DIA": "Dow",
+}
+# All tickers we fetch data for (SaaS + indices)
+ALL_TICKERS: dict[str, str] = {**TICKERS, **INDEX_TICKERS}
+
 # ---------------------------------------------------------------------------
 # Database
 # ---------------------------------------------------------------------------
@@ -103,7 +112,7 @@ def _fetch_reference_prices(session: Session) -> None:
         .filter(Price.date == REFERENCE_DATE)
         .all()
     }
-    missing = [t for t in TICKERS if t not in existing]
+    missing = [t for t in ALL_TICKERS if t not in existing]
     if not missing:
         return
 
@@ -117,7 +126,7 @@ def _fetch_reference_prices(session: Session) -> None:
             row = hist.iloc[0]
             price = Price(
                 ticker=ticker,
-                company=TICKERS[ticker],
+                company=ALL_TICKERS[ticker],
                 date=REFERENCE_DATE,
                 open=float(row["Open"]),
                 high=float(row["High"]),
@@ -139,10 +148,12 @@ def _backfill_history(session: Session) -> None:
     ticker_counts = dict(
         session.query(Price.ticker, func.count(Price.id)).group_by(Price.ticker).all()
     )
-    tickers_needing_backfill = [t for t in TICKERS if ticker_counts.get(t, 0) < 5]
+    tickers_needing_backfill = [t for t in ALL_TICKERS if ticker_counts.get(t, 0) < 5]
 
     if not tickers_needing_backfill:
-        log.info("Backfill skipped: all %d tickers have sufficient data", len(TICKERS))
+        log.info(
+            "Backfill skipped: all %d tickers have sufficient data", len(ALL_TICKERS)
+        )
         return
 
     log.info(
@@ -177,7 +188,7 @@ def _backfill_history(session: Session) -> None:
     multi_ticker = len(ticker_list) > 1
 
     for ticker in ticker_list:
-        company = TICKERS[ticker]
+        company = ALL_TICKERS[ticker]
         try:
             ticker_df = df[ticker] if multi_ticker else df
         except KeyError:
@@ -235,9 +246,10 @@ def fetch_all_prices() -> dict:
         # Ensure reference prices exist
         _fetch_reference_prices(session)
 
-        for ticker in TICKERS:
+        for ticker in ALL_TICKERS:
             try:
                 yf_ticker = yf.Ticker(ticker)
+                is_index = ticker in INDEX_TICKERS
 
                 # Latest day price
                 hist = yf_ticker.history(period="5d")
@@ -255,8 +267,10 @@ def fetch_all_prices() -> dict:
                     .first()
                 )
                 if exists:
-                    # Update market_cap and all_time_high if missing
-                    if exists.market_cap is None or exists.all_time_high is None:
+                    # Update market_cap and all_time_high if missing (skip for indices)
+                    if not is_index and (
+                        exists.market_cap is None or exists.all_time_high is None
+                    ):
                         try:
                             info = yf_ticker.info
                             if exists.market_cap is None:
@@ -268,19 +282,20 @@ def fetch_all_prices() -> dict:
                     results["skipped"].append(ticker)
                     continue
 
-                # Get market cap and ATH from info
+                # Get market cap and ATH from info (skip for indices)
                 market_cap = None
                 all_time_high = None
-                try:
-                    info = yf_ticker.info
-                    market_cap = info.get("marketCap")
-                    all_time_high = info.get("fiftyTwoWeekHigh")
-                except Exception:
-                    pass
+                if not is_index:
+                    try:
+                        info = yf_ticker.info
+                        market_cap = info.get("marketCap")
+                        all_time_high = info.get("fiftyTwoWeekHigh")
+                    except Exception:
+                        pass
 
                 price = Price(
                     ticker=ticker,
-                    company=TICKERS[ticker],
+                    company=ALL_TICKERS[ticker],
                     date=trade_date,
                     open=float(row["Open"]),
                     high=float(row["High"]),
@@ -383,9 +398,17 @@ def build_dashboard_data() -> dict:
         }
 
         rows = []
+        index_pcts: dict[str, float | None] = {}  # ticker -> % since Nov 3
+
         for p in latest_prices:
             ref_close = ref_prices.get(p.ticker)
             pct_nov1 = ((p.close - ref_close) / ref_close * 100) if ref_close else None
+
+            # Index tickers go into summary bar, not the table
+            if p.ticker in INDEX_TICKERS:
+                index_pcts[p.ticker] = pct_nov1
+                continue
+
             pct_ath = (
                 ((p.close - p.all_time_high) / p.all_time_high * 100)
                 if p.all_time_high
@@ -430,11 +453,26 @@ def build_dashboard_data() -> dict:
         median_nov1 = statistics.median(nov1_vals) if nov1_vals else None
         median_ath = statistics.median(ath_vals) if ath_vals else None
 
+        # Build index benchmark data for summary bar
+        def _fmt_idx(pct: float | None) -> str:
+            return f"{pct:+.1f}%" if pct is not None else "N/A"
+
+        indices = [
+            {
+                "ticker": t,
+                "label": INDEX_TICKERS[t],
+                "pct": index_pcts.get(t),
+                "pct_fmt": _fmt_idx(index_pcts.get(t)),
+            }
+            for t in INDEX_TICKERS
+        ]
+
         # Get last fetched_at
         last_updated = session.query(func.max(Price.fetched_at)).scalar()
 
         return {
             "rows": rows,
+            "indices": indices,
             "median_nov1": median_nov1,
             "median_nov1_fmt": f"{median_nov1:+.1f}%"
             if median_nov1 is not None
@@ -505,7 +543,7 @@ async def lifespan(app: FastAPI):
     log.info("Scheduler shut down")
 
 
-app = FastAPI(title="SaaS Ticker Dashboard", lifespan=lifespan)
+app = FastAPI(title="Death of SaaS?", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
@@ -570,8 +608,9 @@ async def chart_median_history(metric: str = "nov3"):
             )
             ref_map = {r.ticker: float(r.close) for r in ref_rows if r.close}
 
-        # 3. Group by date, compute % change per ticker
+        # 3. Group by date, compute % change per ticker (separate SaaS vs indices)
         date_ticker_pct: dict[date, dict[str, float]] = defaultdict(dict)
+        date_index_pct: dict[date, dict[str, float]] = defaultdict(dict)
         company_map: dict[str, str] = {}
 
         for ticker, company, dt, close in rows:
@@ -581,24 +620,31 @@ async def chart_median_history(metric: str = "nov3"):
             if not ref_val:
                 continue
             pct = (float(close) - ref_val) / ref_val * 100
-            date_ticker_pct[dt][ticker] = round(pct, 2)
-            company_map[ticker] = company
+            if ticker in INDEX_TICKERS:
+                date_index_pct[dt][ticker] = round(pct, 2)
+            else:
+                date_ticker_pct[dt][ticker] = round(pct, 2)
+                company_map[ticker] = company
 
         # 4. Build response arrays
-        sorted_dates = sorted(date_ticker_pct.keys())
+        sorted_dates = sorted(set(date_ticker_pct.keys()) | set(date_index_pct.keys()))
         all_tickers = sorted(company_map.keys())
 
         median_values: list[float | None] = []
         ticker_values: dict[str, list[float | None]] = {t: [] for t in all_tickers}
+        index_values: dict[str, list[float | None]] = {t: [] for t in INDEX_TICKERS}
 
         for dt in sorted_dates:
-            day_pcts = date_ticker_pct[dt]
+            day_pcts = date_ticker_pct.get(dt, {})
             values = list(day_pcts.values())
             median_values.append(
                 round(statistics.median(values), 2) if values else None
             )
             for t in all_tickers:
                 ticker_values[t].append(day_pcts.get(t))
+            day_idx = date_index_pct.get(dt, {})
+            for t in INDEX_TICKERS:
+                index_values[t].append(day_idx.get(t))
 
         return {
             "metric": metric,
@@ -607,6 +653,10 @@ async def chart_median_history(metric: str = "nov3"):
             "tickers": {
                 t: {"company": company_map[t], "values": ticker_values[t]}
                 for t in all_tickers
+            },
+            "indices": {
+                t: {"label": INDEX_TICKERS[t], "values": index_values[t]}
+                for t in INDEX_TICKERS
             },
         }
     finally:

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SaaS Ticker Dashboard</title>
+  <title>Death of SaaS?</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%230d1117'/><polyline points='15,70 35,50 55,60 85,25' fill='none' stroke='%23f85149' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/><circle cx='85' cy='25' r='5' fill='%23f85149'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -245,15 +245,12 @@
     .summary-metric .label {
       font-size: 11px;
       color: #7d8590;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     .summary-metric .value {
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 4px;
+      padding: 0;
       font-variant-numeric: tabular-nums;
       cursor: pointer;
       user-select: none;
@@ -275,6 +272,30 @@
 
     .summary-metric .value.expanded .badge-arrow {
       transform: rotate(180deg);
+    }
+
+    /* Separator between SaaS median and index benchmarks */
+    .summary-sep {
+      width: 1px;
+      height: 20px;
+      background: #30363d;
+    }
+
+    /* Index badges — not clickable, just context */
+    .index-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .index-badge .idx-label {
+      font-size: 11px;
+    }
+
+    .index-badge .idx-value {
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Chart panels */
@@ -331,6 +352,11 @@
       opacity: 0.4;
     }
 
+    .chart-legend-swatch.dashed {
+      height: 0;
+      border-top: 2px dashed;
+    }
+
     .chart-close {
       background: none;
       border: none;
@@ -377,32 +403,53 @@
   <div class="container">
     <header>
       <div>
-        <h1>SaaS Ticker Dashboard</h1>
+        <h1>Death of SaaS?</h1>
         <p class="subtitle">Performance snapshot &mdash; Since Nov 3, 2025</p>
       </div>
       <span class="last-updated">Last updated: {{ last_updated }}</span>
     </header>
 
     {% if rows %}
-    <div class="summary-bar">
+    <div class="summary-bar" style="flex-wrap:wrap">
+      {% for idx in indices %}
+      <div class="index-badge" style="color:{% if idx.pct is not none and idx.pct < 0 %}#f85149{% elif idx.pct is not none and idx.pct > 0 %}#7ee787{% else %}#c9d1d9{% endif %}">
+        <span class="idx-label">{{ idx.label }}</span>
+        <span class="idx-value">{{ idx.pct_fmt }}</span>
+      </div>
+      {% endfor %}
+
+      <div class="summary-sep"></div>
+
       <div class="summary-metric">
         <span class="label">Median % Since Nov 3</span>
-        <span class="value" id="badge-nov3" style="background:{{ median_nov1_style.bg }};color:{{ median_nov1_style.fg }}" onclick="toggleChart('nov3')">{{ median_nov1_fmt }}<span class="badge-arrow">&#9660;</span></span>
+        <span class="value" id="badge-nov3" style="color:{% if median_nov1 is not none and median_nov1 < 0 %}#f85149{% elif median_nov1 is not none and median_nov1 > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('nov3')">{{ median_nov1_fmt }}<span class="badge-arrow">&#9660;</span></span>
       </div>
       <div class="summary-metric">
         <span class="label">Median % Since ATH</span>
-        <span class="value" id="badge-ath" style="background:{{ median_ath_style.bg }};color:{{ median_ath_style.fg }}" onclick="toggleChart('ath')">{{ median_ath_fmt }}<span class="badge-arrow">&#9660;</span></span>
+        <span class="value" id="badge-ath" style="color:{% if median_ath is not none and median_ath < 0 %}#f85149{% elif median_ath is not none and median_ath > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('ath')">{{ median_ath_fmt }}<span class="badge-arrow">&#9660;</span></span>
       </div>
     </div>
 
     <!-- Chart panels (hidden by default, toggled by badge clicks) -->
     <div id="panel-nov3" class="chart-panel">
       <div class="chart-header">
-        <span>Median % Since Nov 3, 2025</span>
+        <span>% Since Nov 3, 2025</span>
         <div class="chart-legend">
           <div class="chart-legend-item">
             <span class="chart-legend-swatch" style="background:#f85149"></span>
-            <span>Median</span>
+            <span>SaaS Median</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#58a6ff"></span>
+            <span>S&amp;P 500</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#d2a8ff"></span>
+            <span>Nasdaq</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#7ee787"></span>
+            <span>Dow</span>
           </div>
           <div class="chart-legend-item">
             <span class="chart-legend-swatch faint" style="background:#8b949e"></span>
@@ -589,12 +636,14 @@
     })();
 
     // -----------------------------------------------------------------------
-    // Spaghetti charts with hover highlighting
+    // Spaghetti charts with hover highlighting + index benchmarks
     // -----------------------------------------------------------------------
     (function() {
       var charts = { nov3: null, ath: null };
       var chartData = { nov3: null, ath: null };
       var hoveredDataset = { nov3: -1, ath: -1 };
+      // Track dataset index ranges per metric
+      var ranges = { nov3: {}, ath: {} };
 
       // Color helpers — each ticker gets a consistent hue
       var HUES = [200, 220, 180, 260, 300, 340, 30, 60, 150, 120];
@@ -606,6 +655,9 @@
         return 'hsla(' + tickerHue(idx) + ', 60%, 65%, 0.95)';
       }
 
+      // Index line colors
+      var INDEX_COLORS = { SPY: '#58a6ff', QQQ: '#d2a8ff', DIA: '#7ee787' };
+
       // Format ISO date "2025-11-03" → "Nov 3"
       var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       function fmtDate(iso) {
@@ -613,17 +665,19 @@
         return MONTHS[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
       }
 
-      // Reset all ticker lines to faint defaults
+      // Reset all lines to default styles
       function resetLineStyles(chart, metric) {
-        var medianIdx = chart.data.datasets.length - 1;
+        var r = ranges[metric];
         var medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
         chart.data.datasets.forEach(function(ds, i) {
-          if (i < medianIdx) {
-            ds.borderColor = tickerColor(i, 0.15);
+          if (i >= r.tickerStart && i < r.tickerEnd) {
+            ds.borderColor = tickerColor(i - r.tickerStart, 0.15);
             ds.borderWidth = 1;
             ds.pointRadius = 0;
             ds.pointHoverRadius = 0;
-          } else {
+          } else if (i >= r.indexStart && i < r.indexEnd) {
+            ds.borderWidth = 2;
+          } else if (i === r.medianIdx) {
             ds.borderColor = medianColor;
             ds.borderWidth = 2.5;
           }
@@ -632,20 +686,22 @@
 
       // Highlight a specific ticker line
       function highlightLine(chart, metric, dsIndex) {
-        var medianIdx = chart.data.datasets.length - 1;
+        var r = ranges[metric];
         var medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
         chart.data.datasets.forEach(function(ds, i) {
           if (i === dsIndex) {
-            ds.borderColor = tickerHighlightColor(i);
+            ds.borderColor = tickerHighlightColor(i - r.tickerStart);
             ds.borderWidth = 2.5;
             ds.pointRadius = 0;
             ds.pointHoverRadius = 4;
-          } else if (i < medianIdx) {
-            ds.borderColor = tickerColor(i, 0.07);
+          } else if (i >= r.tickerStart && i < r.tickerEnd) {
+            ds.borderColor = tickerColor(i - r.tickerStart, 0.07);
             ds.borderWidth = 1;
             ds.pointRadius = 0;
             ds.pointHoverRadius = 0;
-          } else {
+          } else if (i >= r.indexStart && i < r.indexEnd) {
+            ds.borderWidth = 1.5;
+          } else if (i === r.medianIdx) {
             ds.borderColor = medianColor;
             ds.borderWidth = 2;
           }
@@ -690,12 +746,13 @@
       function renderChart(metric, data) {
         var ctx = document.getElementById('chart-' + metric).getContext('2d');
         var medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
-        var medianLabel = metric === 'nov3' ? 'Median % Since Nov 3' : 'Median % Since ATH';
+        var medianLabel = metric === 'nov3' ? 'SaaS Median' : 'SaaS Median (ATH)';
         var labels = data.dates.map(fmtDate);
         var tickerNames = Object.keys(data.tickers).sort();
         var datasets = [];
 
-        // Individual ticker lines (faint, behind)
+        // 1. Individual SaaS ticker lines (faint, behind)
+        var tickerStart = 0;
         tickerNames.forEach(function(ticker, idx) {
           var info = data.tickers[ticker];
           datasets.push({
@@ -709,8 +766,34 @@
             fill: false
           });
         });
+        var tickerEnd = datasets.length;
 
-        // Median line (on top, thick)
+        // 2. Index benchmark lines (dashed, prominent) — only for nov3 metric
+        var indexStart = datasets.length;
+        if (data.indices && metric === 'nov3') {
+          var indexOrder = ['SPY', 'QQQ', 'DIA'];
+          var indexLabels = { SPY: 'S&P 500', QQQ: 'Nasdaq', DIA: 'Dow' };
+          indexOrder.forEach(function(t) {
+            var info = data.indices[t];
+            if (!info) return;
+            datasets.push({
+              label: indexLabels[t] || t,
+              data: info.values,
+              borderColor: INDEX_COLORS[t],
+              borderWidth: 2,
+              borderDash: [6, 4],
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              pointHoverBackgroundColor: INDEX_COLORS[t],
+              tension: 0.3,
+              fill: false
+            });
+          });
+        }
+        var indexEnd = datasets.length;
+
+        // 3. SaaS Median line (solid, on top)
+        var medianIdx = datasets.length;
         datasets.push({
           label: medianLabel,
           data: data.median,
@@ -723,7 +806,14 @@
           fill: false
         });
 
-        var medianIdx = datasets.length - 1;
+        // Store ranges for this metric
+        ranges[metric] = {
+          tickerStart: tickerStart,
+          tickerEnd: tickerEnd,
+          indexStart: indexStart,
+          indexEnd: indexEnd,
+          medianIdx: medianIdx
+        };
 
         charts[metric] = new Chart(ctx, {
           type: 'line',
@@ -734,6 +824,7 @@
             interaction: { mode: 'index', intersect: false },
             hover: { mode: 'nearest', intersect: false, axis: 'xy' },
             onHover: function(event, activeElements, chart) {
+              var r = ranges[metric];
               var canvas = chart.canvas;
               if (!activeElements || activeElements.length === 0) {
                 if (hoveredDataset[metric] !== -1) {
@@ -744,10 +835,11 @@
                 }
                 return;
               }
-              // Find nearest non-median line
+              // Find nearest individual ticker line (not index, not median)
               var nearest = null;
               for (var i = 0; i < activeElements.length; i++) {
-                if (activeElements[i].datasetIndex < medianIdx) {
+                var di = activeElements[i].datasetIndex;
+                if (di >= r.tickerStart && di < r.tickerEnd) {
                   nearest = activeElements[i];
                   break;
                 }
@@ -778,14 +870,18 @@
                 borderWidth: 1,
                 displayColors: true,
                 filter: function(tooltipItem) {
-                  if (tooltipItem.datasetIndex === medianIdx) return true;
-                  return tooltipItem.datasetIndex === hoveredDataset[metric];
+                  var r = ranges[metric];
+                  var di = tooltipItem.datasetIndex;
+                  // Always show median and index lines
+                  if (di === r.medianIdx) return true;
+                  if (di >= r.indexStart && di < r.indexEnd) return true;
+                  // Show hovered ticker
+                  return di === hoveredDataset[metric];
                 },
                 callbacks: {
                   label: function(ctx) {
                     var name = ctx.dataset.label;
                     var val = ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A';
-                    if (ctx.datasetIndex === medianIdx) return 'Median: ' + val;
                     return name + ': ' + val;
                   }
                 }
