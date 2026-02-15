@@ -24,3 +24,9 @@ To run locally without Docker:
 uv sync
 uv run uvicorn main:app --reload --port 8000
 ```
+
+## Screenshots
+
+![Dashboard](screenshots/1.png)
+
+![Chart](screenshots/2.png)
