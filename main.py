@@ -594,10 +594,16 @@ async def fetch_status():
 
 
 @app.get("/api/chart/median-history")
-async def chart_median_history(metric: str = "nov3"):
-    """Return daily median % and per-ticker % for chart rendering."""
+async def chart_median_history(metric: str = "nov3", section: str = "saas"):
+    """Return daily median % and index benchmark % for chart rendering."""
     session = SessionLocal()
     try:
+        # Determine which tickers belong to the requested section
+        if section == "top":
+            section_tickers = set(TOP_TICKERS.keys())
+        else:
+            section_tickers = set(TICKERS.keys()) - set(TOP_TICKERS.keys())
+
         # 1. Get all daily prices from reference date onward
         rows = (
             session.query(Price.ticker, Price.company, Price.date, Price.close)
@@ -628,11 +634,9 @@ async def chart_median_history(metric: str = "nov3"):
             )
             ref_map = {r.ticker: float(r.close) for r in ref_rows if r.close}
 
-        # 3. Group by date, compute % change per ticker (separate SaaS vs indices)
+        # 3. Group by date, compute % change per ticker (separate section vs indices)
         date_ticker_pct: dict[date, dict[str, float]] = defaultdict(dict)
         date_index_pct: dict[date, dict[str, float]] = defaultdict(dict)
-        company_map: dict[str, str] = {}
-
         for ticker, company, dt, close in rows:
             if close is None or ticker not in ref_map:
                 continue
@@ -642,16 +646,13 @@ async def chart_median_history(metric: str = "nov3"):
             pct = (float(close) - ref_val) / ref_val * 100
             if ticker in INDEX_TICKERS:
                 date_index_pct[dt][ticker] = round(pct, 2)
-            else:
+            elif ticker in section_tickers:
                 date_ticker_pct[dt][ticker] = round(pct, 2)
-                company_map[ticker] = company
 
-        # 4. Build response arrays
+        # 4. Build response arrays (median + index lines only)
         sorted_dates = sorted(set(date_ticker_pct.keys()) | set(date_index_pct.keys()))
-        all_tickers = sorted(company_map.keys())
 
         median_values: list[float | None] = []
-        ticker_values: dict[str, list[float | None]] = {t: [] for t in all_tickers}
         index_values: dict[str, list[float | None]] = {t: [] for t in INDEX_TICKERS}
 
         for dt in sorted_dates:
@@ -660,8 +661,6 @@ async def chart_median_history(metric: str = "nov3"):
             median_values.append(
                 round(statistics.median(values), 2) if values else None
             )
-            for t in all_tickers:
-                ticker_values[t].append(day_pcts.get(t))
             day_idx = date_index_pct.get(dt, {})
             for t in INDEX_TICKERS:
                 index_values[t].append(day_idx.get(t))
@@ -670,10 +669,6 @@ async def chart_median_history(metric: str = "nov3"):
             "metric": metric,
             "dates": [d.isoformat() for d in sorted_dates],
             "median": median_values,
-            "tickers": {
-                t: {"company": company_map[t], "values": ticker_values[t]}
-                for t in all_tickers
-            },
             "indices": {
                 t: {"label": INDEX_TICKERS[t], "values": index_values[t]}
                 for t in INDEX_TICKERS

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Death of SaaS? — Mockup: Side-by-Side</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%230d1117'/><polyline points='15,70 35,50 55,60 85,25' fill='none' stroke='%23f85149' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/><circle cx='85' cy='25' r='5' fill='%23f85149'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 24px 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    header {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    h1 { font-size: 24px; font-weight: 600; color: #e6edf3; margin-bottom: 4px; letter-spacing: -0.5px; }
+    .subtitle { font-size: 13px; color: #7d8590; }
+    .variant-label { font-size: 11px; color: #f0883e; margin-top: 4px; }
+    .last-updated { font-size: 11px; color: #484f58; white-space: nowrap; padding-top: 6px; }
+
+    /* Index badges in header */
+    .index-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .index-badge .idx-label { font-size: 11px; }
+    .index-badge .idx-value { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* ============================================================ */
+    /* Chart panel (full-width, above panels)                       */
+    /* ============================================================ */
+    .chart-panel {
+      display: none;
+      margin-bottom: 16px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .chart-panel.open {
+      display: block;
+      animation: chartSlideDown 0.2s ease-out;
+    }
+
+    @keyframes chartSlideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      border-bottom: 1px solid #21262d;
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 10px;
+      color: #7d8590;
+    }
+
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .chart-legend-swatch {
+      width: 16px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .chart-legend-swatch.dashed {
+      height: 0;
+      border-top: 2px dashed;
+    }
+
+    .chart-close {
+      background: none;
+      border: none;
+      color: #484f58;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.15s ease;
+      font-family: inherit;
+    }
+
+    .chart-close:hover { color: #f85149; }
+
+    .chart-body {
+      padding: 16px;
+      height: 300px;
+      position: relative;
+    }
+
+    /* ============================================================ */
+    /* Two-panel layout                                             */
+    /* ============================================================ */
+    .panels {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .panel {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      background: rgba(22, 27, 34, 0.5);
+      overflow: hidden;
+    }
+
+    /* Section headers inside panels */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6edf3;
+      letter-spacing: -0.3px;
+    }
+
+    .section-count {
+      font-size: 11px;
+      color: #484f58;
+    }
+
+    .section-spacer { flex: 1; }
+
+    .section-medians {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 11px;
+    }
+
+    .section-medians .med-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-medians .med-label { color: #484f58; }
+
+    .section-medians .med-value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .section-medians .med-value.clickable {
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .section-medians .med-value.clickable:hover { opacity: 0.85; }
+
+    .badge-arrow {
+      font-size: 9px;
+      margin-left: 3px;
+      opacity: 0.5;
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+
+    .med-value.expanded .badge-arrow {
+      transform: rotate(180deg);
+    }
+
+    /* Table container with independent scroll */
+    .table-wrap {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    /* Slim scrollbar */
+    .table-wrap::-webkit-scrollbar { width: 6px; }
+    .table-wrap::-webkit-scrollbar-track { background: transparent; }
+    .table-wrap::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+    .table-wrap::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    colgroup col.col-rank    { width: 32px; }
+    colgroup col.col-ticker  { width: 68px; }
+    colgroup col.col-company { /* flexible */ }
+    colgroup col.col-nov1    { width: 120px; }
+    colgroup col.col-ath     { width: 120px; }
+
+    thead th {
+      background: #161b22;
+      color: #7d8590;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 10px;
+      border-bottom: 2px solid #30363d;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      user-select: none;
+    }
+
+    thead th.right { text-align: right; }
+
+    tbody tr {
+      border-bottom: 1px solid #21262d;
+      transition: background 0.1s ease;
+    }
+
+    tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.015); }
+    tbody tr:hover { background: #1c2333; }
+
+    td {
+      padding: 6px 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    td.rank { color: #484f58; font-size: 11px; text-align: center; }
+    td.ticker { font-weight: 600; }
+    td.ticker a { color: #58a6ff; text-decoration: none; }
+    td.ticker a:hover { text-decoration: underline; }
+    td.company { color: #8b949e; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.pct { font-weight: 600; border-radius: 2px; }
+
+    /* Footer */
+    footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer .meta { font-size: 11px; color: #484f58; }
+
+    footer .refresh-btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 6px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Death of SaaS?</h1>
+        <p class="subtitle">Performance snapshot &mdash; Since Nov 3, 2025</p>
+        <p class="variant-label">Mockup: Side-by-side two-panel layout with chart</p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div style="display:flex;align-items:center;gap:20px">
+          <div class="index-badge" style="color:#7ee787">
+            <span class="idx-label">S&amp;P 500</span>
+            <span class="idx-value">+0.1%</span>
+          </div>
+          <div class="index-badge" style="color:#f85149">
+            <span class="idx-label">Nasdaq</span>
+            <span class="idx-value">-4.6%</span>
+          </div>
+          <div class="index-badge" style="color:#7ee787">
+            <span class="idx-label">Dow</span>
+            <span class="idx-value">+5.0%</span>
+          </div>
+        </div>
+        <span class="last-updated">Last updated: Feb 14, 2026 22:37 UTC</span>
+      </div>
+    </header>
+
+    <!-- ============================================================ -->
+    <!-- Chart panel (full-width, above both panels)                  -->
+    <!-- ============================================================ -->
+    <div id="panel-nov3" class="chart-panel open">
+      <div class="chart-header">
+        <span>% Since Nov 3, 2025</span>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch" style="background:#f85149"></span>
+            <span>SaaS Median</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#58a6ff"></span>
+            <span>S&amp;P 500</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#d2a8ff"></span>
+            <span>Nasdaq</span>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-legend-swatch dashed" style="border-color:#7ee787"></span>
+            <span>Dow</span>
+          </div>
+        </div>
+        <button class="chart-close" onclick="toggleChart('nov3')">&times;</button>
+      </div>
+      <div class="chart-body">
+        <canvas id="chart-nov3"></canvas>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- Two-panel layout                                             -->
+    <!-- ============================================================ -->
+    <div class="panels">
+
+      <!-- LEFT PANEL: Top -->
+      <div class="panel">
+        <div class="section-header">
+          <span class="section-title">Top</span>
+          <span class="section-count">8 companies</span>
+          <span class="section-spacer"></span>
+          <div class="section-medians">
+            <div class="med-group">
+              <span class="med-label">Nov 3</span>
+              <span class="med-value" style="color:#7ee787">+5.0%</span>
+            </div>
+            <div class="med-group">
+              <span class="med-label">ATH</span>
+              <span class="med-value" style="color:#f85149">-9.2%</span>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <colgroup>
+              <col class="col-rank">
+              <col class="col-ticker">
+              <col class="col-company">
+              <col class="col-nov1">
+              <col class="col-ath">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Ticker</th>
+                <th>Company</th>
+                <th class="right">% Since Nov 3</th>
+                <th class="right">% Since ATH</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="rank">1</td>
+                <td class="ticker"><a href="#">INTC</a></td>
+                <td class="company">Intel</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.10);color:#c9d1d9">-10.0%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.45);color:#fff">-70.2%</td>
+              </tr>
+              <tr>
+                <td class="rank">2</td>
+                <td class="ticker"><a href="#">AMD</a></td>
+                <td class="company">AMD</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9">-7.1%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.38);color:#fff">-50.4%</td>
+              </tr>
+              <tr>
+                <td class="rank">3</td>
+                <td class="ticker"><a href="#">AMZN</a></td>
+                <td class="company">Amazon</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.04);color:#c9d1d9">-1.9%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9">-5.6%</td>
+              </tr>
+              <tr>
+                <td class="rank">4</td>
+                <td class="ticker"><a href="#">META</a></td>
+                <td class="company">Meta Platforms</td>
+                <td class="num pct" style="background:rgba(40,167,69,0.18);color:#c9d1d9">+24.4%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.02);color:#c9d1d9">-3.0%</td>
+              </tr>
+              <tr>
+                <td class="rank">5</td>
+                <td class="ticker"><a href="#">AAPL</a></td>
+                <td class="company">Apple</td>
+                <td class="num pct" style="background:rgba(40,167,69,0.10);color:#c9d1d9">+4.4%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.03);color:#c9d1d9">-4.6%</td>
+              </tr>
+              <tr>
+                <td class="rank">6</td>
+                <td class="ticker"><a href="#">GOOGL</a></td>
+                <td class="company">Alphabet</td>
+                <td class="num pct" style="background:rgba(40,167,69,0.14);color:#c9d1d9">+8.4%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.04);color:#c9d1d9">-10.8%</td>
+              </tr>
+              <tr>
+                <td class="rank">7</td>
+                <td class="ticker"><a href="#">NFLX</a></td>
+                <td class="company">Netflix</td>
+                <td class="num pct" style="background:rgba(40,167,69,0.22);color:#c9d1d9">+28.7%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.01);color:#c9d1d9">+0.4%</td>
+              </tr>
+              <tr>
+                <td class="rank">8</td>
+                <td class="ticker"><a href="#">NVDA</a></td>
+                <td class="company">NVIDIA</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.02);color:#c9d1d9">-1.1%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.10);color:#c9d1d9">-14.3%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: SaaS -->
+      <div class="panel">
+        <div class="section-header">
+          <span class="section-title">SaaS</span>
+          <span class="section-count">160 companies</span>
+          <span class="section-spacer"></span>
+          <div class="section-medians">
+            <div class="med-group">
+              <span class="med-label">Nov 3</span>
+              <span class="med-value clickable" id="badge-nov3" style="color:#f85149" onclick="toggleChart('nov3')">-28.0%<span class="badge-arrow">&#9660;</span></span>
+            </div>
+            <div class="med-group">
+              <span class="med-label">ATH</span>
+              <span class="med-value" style="color:#f85149">-46.5%</span>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <colgroup>
+              <col class="col-rank">
+              <col class="col-ticker">
+              <col class="col-company">
+              <col class="col-nov1">
+              <col class="col-ath">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Ticker</th>
+                <th>Company</th>
+                <th class="right">% Since Nov 3</th>
+                <th class="right">% Since ATH</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="rank">1</td>
+                <td class="ticker"><a href="#">ASAN</a></td>
+                <td class="company">Asana</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff">-46.3%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff">-91.5%</td>
+              </tr>
+              <tr>
+                <td class="rank">2</td>
+                <td class="ticker"><a href="#">BRZE</a></td>
+                <td class="company">Braze</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.48);color:#fff">-40.6%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.48);color:#fff">-60.6%</td>
+              </tr>
+              <tr>
+                <td class="rank">3</td>
+                <td class="ticker"><a href="#">DOCN</a></td>
+                <td class="company">DigitalOcean</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.42);color:#fff">-34.4%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.50);color:#fff">-79.7%</td>
+              </tr>
+              <tr>
+                <td class="rank">4</td>
+                <td class="ticker"><a href="#">CRM</a></td>
+                <td class="company">Salesforce</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9">-5.3%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.06);color:#c9d1d9">-10.4%</td>
+              </tr>
+              <tr>
+                <td class="rank">5</td>
+                <td class="ticker"><a href="#">NOW</a></td>
+                <td class="company">ServiceNow</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.05);color:#c9d1d9">-3.7%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9">-10.1%</td>
+              </tr>
+              <tr>
+                <td class="rank">6</td>
+                <td class="ticker"><a href="#">SNOW</a></td>
+                <td class="company">Snowflake</td>
+                <td class="num pct" style="background:rgba(40,167,69,0.10);color:#c9d1d9">+10.2%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.35);color:#fff">-58.8%</td>
+              </tr>
+              <tr>
+                <td class="rank">7</td>
+                <td class="ticker"><a href="#">DDOG</a></td>
+                <td class="company">Datadog</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.20);color:#c9d1d9">-14.9%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.22);color:#c9d1d9">-36.4%</td>
+              </tr>
+              <tr>
+                <td class="rank">8</td>
+                <td class="ticker"><a href="#">NET</a></td>
+                <td class="company">Cloudflare</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.14);color:#c9d1d9">-9.8%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.15);color:#c9d1d9">-45.0%</td>
+              </tr>
+              <tr>
+                <td class="rank">9</td>
+                <td class="ticker"><a href="#">ZS</a></td>
+                <td class="company">Zscaler</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.12);color:#c9d1d9">-7.4%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.30);color:#fff">-50.4%</td>
+              </tr>
+              <tr>
+                <td class="rank">10</td>
+                <td class="ticker"><a href="#">CRWD</a></td>
+                <td class="company">CrowdStrike</td>
+                <td class="num pct" style="background:rgba(40,167,69,0.08);color:#c9d1d9">+5.6%</td>
+                <td class="num pct" style="background:rgba(220,50,47,0.05);color:#c9d1d9">-7.0%</td>
+              </tr>
+              <tr>
+                <td class="rank" colspan="5" style="text-align:center;color:#484f58;padding:12px;font-style:italic">
+                  &hellip; 150 more SaaS companies &hellip;
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <footer>
+      <span class="meta">168 companies total (8 Top + 160 SaaS)</span>
+      <button class="refresh-btn">Refresh Data</button>
+    </footer>
+  </div>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // Toggle chart panel open/closed
+    // -----------------------------------------------------------------------
+    function toggleChart(metric) {
+      var panel = document.getElementById('panel-' + metric);
+      var badge = document.getElementById('badge-' + metric);
+      if (!panel) return;
+      var isOpen = panel.classList.contains('open');
+      if (isOpen) {
+        panel.classList.remove('open');
+        if (badge) badge.classList.remove('expanded');
+      } else {
+        panel.classList.add('open');
+        if (badge) badge.classList.add('expanded');
+      }
+    }
+
+    // Mark badge as expanded on load since chart starts open
+    (function() {
+      var badge = document.getElementById('badge-nov3');
+      if (badge) badge.classList.add('expanded');
+    })();
+
+    // -----------------------------------------------------------------------
+    // Static Chart.js chart with sample median + index data
+    // -----------------------------------------------------------------------
+    (function() {
+      var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      function fmtDate(iso) {
+        var parts = iso.split('-');
+        return MONTHS[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
+      }
+
+      // Sample dates: Nov 3, 2025 through Feb 14, 2026 (weekly points for clarity)
+      var dates = [
+        '2025-11-03','2025-11-10','2025-11-17','2025-11-24','2025-12-01',
+        '2025-12-08','2025-12-15','2025-12-22','2025-12-29','2026-01-05',
+        '2026-01-12','2026-01-19','2026-01-26','2026-02-02','2026-02-09','2026-02-14'
+      ];
+      var labels = dates.map(fmtDate);
+
+      // SaaS Median: gradual decline from 0% to ~-28%
+      var saasMedian = [0, -2.1, -5.4, -8.8, -11.2, -14.5, -16.3, -18.0, -19.7, -21.4, -23.1, -24.8, -25.9, -27.1, -27.6, -28.0];
+
+      // S&P 500: hovering near 0%, ending at +0.1%
+      var spy = [0, 0.8, 1.5, 0.9, -0.3, -1.2, -0.5, 0.3, 0.7, 1.1, 0.5, -0.4, -0.8, 0.2, 0.4, 0.1];
+
+      // Nasdaq: decline to ~-4.6%
+      var qqq = [0, -0.5, -1.2, -2.1, -3.0, -3.8, -3.2, -2.5, -3.1, -3.6, -4.2, -4.8, -5.1, -4.9, -4.5, -4.6];
+
+      // Dow: climb to +5.0%
+      var dia = [0, 1.2, 2.0, 2.8, 3.1, 2.5, 3.2, 3.8, 4.0, 4.3, 4.5, 4.1, 4.6, 4.8, 5.1, 5.0];
+
+      var ctx = document.getElementById('chart-nov3').getContext('2d');
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            // Index lines (faint dashed)
+            {
+              label: 'S&P 500',
+              data: spy,
+              borderColor: 'rgba(88,166,255,0.3)',
+              borderWidth: 1.5,
+              borderDash: [6, 4],
+              pointRadius: 0,
+              pointHoverRadius: 3,
+              pointHoverBackgroundColor: '#58a6ff',
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: 'Nasdaq',
+              data: qqq,
+              borderColor: 'rgba(210,168,255,0.3)',
+              borderWidth: 1.5,
+              borderDash: [6, 4],
+              pointRadius: 0,
+              pointHoverRadius: 3,
+              pointHoverBackgroundColor: '#d2a8ff',
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: 'Dow',
+              data: dia,
+              borderColor: 'rgba(126,231,135,0.3)',
+              borderWidth: 1.5,
+              borderDash: [6, 4],
+              pointRadius: 0,
+              pointHoverRadius: 3,
+              pointHoverBackgroundColor: '#7ee787',
+              tension: 0.3,
+              fill: false
+            },
+            // SaaS Median (prominent solid)
+            {
+              label: 'SaaS Median',
+              data: saasMedian,
+              borderColor: '#f85149',
+              borderWidth: 2.5,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#f85149',
+              tension: 0.3,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#161b22',
+              titleColor: '#c9d1d9',
+              bodyColor: '#c9d1d9',
+              borderColor: '#30363d',
+              borderWidth: 1,
+              displayColors: true,
+              callbacks: {
+                label: function(ctx) {
+                  var val = ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A';
+                  return ctx.dataset.label + ': ' + val;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                color: '#8b949e',
+                maxTicksLimit: 12,
+                maxRotation: 0,
+                font: { family: "'IBM Plex Mono', monospace", size: 10 }
+              },
+              grid: { color: '#21262d' }
+            },
+            y: {
+              ticks: {
+                color: '#8b949e',
+                callback: function(val) { return val.toFixed(0) + '%'; },
+                font: { family: "'IBM Plex Mono', monospace", size: 10 }
+              },
+              grid: { color: '#21262d' }
+            }
+          }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
