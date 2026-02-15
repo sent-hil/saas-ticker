@@ -465,14 +465,14 @@
 
     {% if rows or top_rows %}
 
-    <!-- Chart panels (hidden by default, toggled by badge clicks) -->
-    <div id="panel-nov3" class="chart-panel">
+    <!-- Single chart panel (shows SaaS by default, swappable) -->
+    <div id="chart-panel" class="chart-panel open">
       <div class="chart-header">
-        <span>SaaS &mdash; % Since Nov 3, 2025</span>
+        <span id="chart-title">SaaS &mdash; % Since Nov 3, 2025</span>
         <div class="chart-legend">
           <div class="chart-legend-item">
             <span class="chart-legend-swatch" style="background:#f85149"></span>
-            <span>SaaS Median</span>
+            <span id="chart-legend-median">SaaS Median</span>
           </div>
           <div class="chart-legend-item">
             <span class="chart-legend-swatch dashed" style="border-color:#58a6ff"></span>
@@ -487,40 +487,11 @@
             <span>Dow</span>
           </div>
         </div>
-        <button class="chart-close" onclick="toggleChart('nov3')">&times;</button>
+        <button class="chart-close" onclick="closeChart()">&times;</button>
       </div>
       <div class="chart-body">
-        <canvas id="chart-nov3"></canvas>
-        <div class="chart-loading" id="loading-nov3"><span class="spinner"></span> Loading chart&hellip;</div>
-      </div>
-    </div>
-
-    <div id="panel-top-nov3" class="chart-panel">
-      <div class="chart-header">
-        <span>Top &mdash; % Since Nov 3, 2025</span>
-        <div class="chart-legend">
-          <div class="chart-legend-item">
-            <span class="chart-legend-swatch" style="background:#f85149"></span>
-            <span>Top Median</span>
-          </div>
-          <div class="chart-legend-item">
-            <span class="chart-legend-swatch dashed" style="border-color:#58a6ff"></span>
-            <span>S&amp;P 500</span>
-          </div>
-          <div class="chart-legend-item">
-            <span class="chart-legend-swatch dashed" style="border-color:#d2a8ff"></span>
-            <span>Nasdaq</span>
-          </div>
-          <div class="chart-legend-item">
-            <span class="chart-legend-swatch dashed" style="border-color:#7ee787"></span>
-            <span>Dow</span>
-          </div>
-        </div>
-        <button class="chart-close" onclick="toggleChart('top-nov3')">&times;</button>
-      </div>
-      <div class="chart-body">
-        <canvas id="chart-top-nov3"></canvas>
-        <div class="chart-loading" id="loading-top-nov3"><span class="spinner"></span> Loading chart&hellip;</div>
+        <canvas id="chart-canvas"></canvas>
+        <div class="chart-loading" id="chart-loading"><span class="spinner"></span> Loading chart&hellip;</div>
       </div>
     </div>
 
@@ -746,21 +717,29 @@
     })();
 
     // -----------------------------------------------------------------------
-    // Median charts with index benchmark hover highlighting
+    // Single chart panel with swap behavior
     // -----------------------------------------------------------------------
     (function() {
-      // Chart config: key → { section, label, canvasId, loadingId }
+      var DEFAULT_KEY = 'nov3';
+
+      // Chart config per key
       var CHARTS = {
-        'nov3':     { section: 'saas', label: 'SaaS Median', canvasId: 'chart-nov3',     loadingId: 'loading-nov3' },
-        'top-nov3': { section: 'top',  label: 'Top Median',  canvasId: 'chart-top-nov3', loadingId: 'loading-top-nov3' }
+        'nov3':     { section: 'saas', label: 'SaaS Median', title: 'SaaS \u2014 % Since Nov 3, 2025' },
+        'top-nov3': { section: 'top',  label: 'Top Median',  title: 'Top \u2014 % Since Nov 3, 2025' }
       };
 
-      var charts = {};       // key → Chart instance
-      var hoveredIdx = {};   // key → dataset index being hovered
-      var idxRanges = {};    // key → { start, end }
-      Object.keys(CHARTS).forEach(function(k) { charts[k] = null; hoveredIdx[k] = -1; idxRanges[k] = {}; });
+      var panel = document.getElementById('chart-panel');
+      var canvas = document.getElementById('chart-canvas');
+      var loadingEl = document.getElementById('chart-loading');
+      var titleEl = document.getElementById('chart-title');
+      var legendMedianEl = document.getElementById('chart-legend-median');
 
-      // Index line colors
+      var chart = null;        // current Chart.js instance
+      var activeKey = null;    // which key is currently shown
+      var hoveredIdx = -1;
+      var idxRange = {};
+      var dataCache = {};      // key → fetched data
+
       var INDEX_COLORS = { SPY: '#58a6ff', QQQ: '#d2a8ff', DIA: '#7ee787' };
       var INDEX_FAINT  = { SPY: 'rgba(88,166,255,0.2)', QQQ: 'rgba(210,168,255,0.2)', DIA: 'rgba(126,231,135,0.2)' };
       var LABEL_TO_TICKER = { 'S&P 500': 'SPY', 'Nasdaq': 'QQQ', 'Dow': 'DIA' };
@@ -771,10 +750,9 @@
         return MONTHS[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
       }
 
-      function resetIndexStyles(c, key) {
-        var r = idxRanges[key];
+      function resetIndexStyles(c) {
         c.data.datasets.forEach(function(ds, i) {
-          if (i >= r.start && i < r.end) {
+          if (i >= idxRange.start && i < idxRange.end) {
             var ticker = LABEL_TO_TICKER[ds.label];
             if (ticker) {
               ds.borderColor = INDEX_FAINT[ticker];
@@ -785,10 +763,9 @@
         });
       }
 
-      function highlightIndex(c, key, dsIdx) {
-        var r = idxRanges[key];
+      function highlightIndex(c, dsIdx) {
         c.data.datasets.forEach(function(ds, i) {
-          if (i >= r.start && i < r.end) {
+          if (i >= idxRange.start && i < idxRange.end) {
             var ticker = LABEL_TO_TICKER[ds.label];
             if (!ticker) return;
             if (i === dsIdx) {
@@ -804,49 +781,87 @@
         });
       }
 
-      // Toggle chart panel open/closed
-      window.toggleChart = function(key) {
-        var panel = document.getElementById('panel-' + key);
+      function updateBadges(key) {
+        // Remove expanded from all badges, add to active
+        Object.keys(CHARTS).forEach(function(k) {
+          var b = document.getElementById('badge-' + k);
+          if (b) b.classList.remove('expanded');
+        });
         var badge = document.getElementById('badge-' + key);
+        if (badge) badge.classList.add('expanded');
+      }
+
+      // Show chart for a given key (swap if different, toggle if same)
+      window.toggleChart = function(key) {
         if (!panel) return;
         var isOpen = panel.classList.contains('open');
 
-        if (isOpen) {
+        if (isOpen && activeKey === key) {
+          // Clicking the same badge again — close
           panel.classList.remove('open');
-          if (badge) badge.classList.remove('expanded');
-        } else {
-          panel.classList.add('open');
-          if (badge) badge.classList.add('expanded');
-          if (!charts[key]) {
-            loadChart(key);
-          }
+          updateBadges(null);
+          return;
         }
+
+        // Open panel (or keep open) and swap to requested chart
+        panel.classList.add('open');
+        showChart(key);
       };
 
-      // Fetch data and render chart
-      function loadChart(key) {
+      // Close chart entirely
+      window.closeChart = function() {
+        if (!panel) return;
+        panel.classList.remove('open');
+        updateBadges(null);
+      };
+
+      function showChart(key) {
         var cfg = CHARTS[key];
         if (!cfg) return;
-        var loading = document.getElementById(cfg.loadingId);
+
+        activeKey = key;
+        titleEl.textContent = cfg.title;
+        legendMedianEl.textContent = cfg.label;
+        updateBadges(key);
+
+        if (dataCache[key]) {
+          renderChart(key, dataCache[key]);
+        } else {
+          // Show loading, hide canvas
+          if (loadingEl) { loadingEl.style.display = ''; loadingEl.textContent = ''; loadingEl.innerHTML = '<span class="spinner"></span> Loading chart\u2026'; }
+          if (chart) { chart.destroy(); chart = null; }
+          fetchChart(key);
+        }
+      }
+
+      function fetchChart(key) {
+        var cfg = CHARTS[key];
         fetch('/api/chart/median-history?metric=nov3&section=' + cfg.section)
           .then(function(r) { return r.json(); })
           .then(function(data) {
-            if (loading) loading.style.display = 'none';
-            renderChart(key, data);
+            dataCache[key] = data;
+            if (loadingEl) loadingEl.style.display = 'none';
+            // Only render if this key is still active (user didn't swap while loading)
+            if (activeKey === key) renderChart(key, data);
           })
           .catch(function(err) {
-            if (loading) loading.textContent = 'Failed to load chart data';
+            if (loadingEl) loadingEl.textContent = 'Failed to load chart data';
             console.error('Chart load error:', err);
           });
       }
 
       function renderChart(key, data) {
         var cfg = CHARTS[key];
-        var ctx = document.getElementById(cfg.canvasId).getContext('2d');
+        if (loadingEl) loadingEl.style.display = 'none';
+
+        // Destroy previous chart if exists
+        if (chart) { chart.destroy(); chart = null; }
+
+        var ctx = canvas.getContext('2d');
         var labels = data.dates.map(fmtDate);
         var datasets = [];
 
-        // 1. Index benchmark lines (faint by default, highlight on hover)
+        // 1. Index benchmark lines
         var idxStart = 0;
         if (data.indices) {
           var indexOrder = ['SPY', 'QQQ', 'DIA'];
@@ -868,9 +883,9 @@
             });
           });
         }
-        idxRanges[key] = { start: idxStart, end: datasets.length };
+        idxRange = { start: idxStart, end: datasets.length };
 
-        // 2. Median line (solid, prominent)
+        // 2. Median line
         var medianIdx = datasets.length;
         datasets.push({
           label: cfg.label,
@@ -884,7 +899,9 @@
           fill: false
         });
 
-        charts[key] = new Chart(ctx, {
+        hoveredIdx = -1;
+
+        chart = new Chart(ctx, {
           type: 'line',
           data: { labels: labels, datasets: datasets },
           options: {
@@ -893,40 +910,39 @@
             interaction: { mode: 'index', intersect: false },
             hover: { mode: 'nearest', intersect: false, axis: 'xy' },
             onHover: function(event, activeElements, c) {
-              var r = idxRanges[key];
-              var canvas = c.canvas;
+              var cvs = c.canvas;
               if (!activeElements || activeElements.length === 0) {
-                if (hoveredIdx[key] !== -1) {
-                  hoveredIdx[key] = -1;
-                  resetIndexStyles(c, key);
+                if (hoveredIdx !== -1) {
+                  hoveredIdx = -1;
+                  resetIndexStyles(c);
                   c.update('none');
-                  canvas.style.cursor = 'default';
+                  cvs.style.cursor = 'default';
                 }
                 return;
               }
               var nearest = null;
               for (var i = 0; i < activeElements.length; i++) {
                 var di = activeElements[i].datasetIndex;
-                if (di >= r.start && di < r.end) {
+                if (di >= idxRange.start && di < idxRange.end) {
                   nearest = activeElements[i];
                   break;
                 }
               }
               if (!nearest) {
-                if (hoveredIdx[key] !== -1) {
-                  hoveredIdx[key] = -1;
-                  resetIndexStyles(c, key);
+                if (hoveredIdx !== -1) {
+                  hoveredIdx = -1;
+                  resetIndexStyles(c);
                   c.update('none');
-                  canvas.style.cursor = 'default';
+                  cvs.style.cursor = 'default';
                 }
                 return;
               }
               var dsIdx = nearest.datasetIndex;
-              if (hoveredIdx[key] === dsIdx) return;
-              hoveredIdx[key] = dsIdx;
-              highlightIndex(c, key, dsIdx);
+              if (hoveredIdx === dsIdx) return;
+              hoveredIdx = dsIdx;
+              highlightIndex(c, dsIdx);
               c.update('none');
-              canvas.style.cursor = 'pointer';
+              cvs.style.cursor = 'pointer';
             },
             plugins: {
               legend: { display: false },
@@ -940,7 +956,7 @@
                 filter: function(tooltipItem) {
                   var di = tooltipItem.datasetIndex;
                   if (di === medianIdx) return true;
-                  return di === hoveredIdx[key];
+                  return di === hoveredIdx;
                 },
                 callbacks: {
                   label: function(ctx) {
@@ -973,14 +989,17 @@
           }
         });
 
-        charts[key].canvas.addEventListener('mouseleave', function() {
-          if (hoveredIdx[key] !== -1) {
-            hoveredIdx[key] = -1;
-            resetIndexStyles(charts[key], key);
-            charts[key].update('none');
+        chart.canvas.addEventListener('mouseleave', function() {
+          if (hoveredIdx !== -1) {
+            hoveredIdx = -1;
+            resetIndexStyles(chart);
+            chart.update('none');
           }
         });
       }
+
+      // Auto-load default chart on page load
+      showChart(DEFAULT_KEY);
     })();
   </script>
 </body>
