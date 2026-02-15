@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Death of SaaS? — Mockup: Two Sections</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%230d1117'/><polyline points='15,70 35,50 55,60 85,25' fill='none' stroke='%23f85149' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/><circle cx='85' cy='25' r='5' fill='%23f85149'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 24px 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    h1 { font-size: 24px; font-weight: 600; color: #e6edf3; margin-bottom: 4px; letter-spacing: -0.5px; }
+    .subtitle { font-size: 13px; color: #7d8590; }
+    .last-updated { font-size: 11px; color: #484f58; white-space: nowrap; padding-top: 6px; }
+
+    /* Summary bar */
+    .summary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 20px;
+      margin-bottom: 4px;
+      padding: 10px 12px;
+      flex-wrap: wrap;
+    }
+
+    .summary-metric {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .summary-metric .label {
+      font-size: 11px;
+      color: #7d8590;
+    }
+
+    .summary-metric .value {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .summary-metric .value:hover { opacity: 0.85; }
+
+    .summary-metric .value .arrow {
+      font-size: 9px;
+      margin-left: 4px;
+      opacity: 0.5;
+    }
+
+    .summary-sep {
+      width: 1px;
+      height: 20px;
+      background: #30363d;
+    }
+
+    .index-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .index-badge .idx-label { font-size: 11px; }
+    .index-badge .idx-value { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* Section headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 28px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .section-header:first-of-type {
+      margin-top: 0;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6edf3;
+      letter-spacing: -0.3px;
+    }
+
+    .section-count {
+      font-size: 11px;
+      color: #484f58;
+    }
+
+    .section-spacer {
+      flex: 1;
+    }
+
+    .section-medians {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 11px;
+    }
+
+    .section-medians .med-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-medians .med-label {
+      color: #484f58;
+    }
+
+    .section-medians .med-value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    colgroup col.col-rank    { width: 36px; }
+    colgroup col.col-ticker  { width: 72px; }
+    colgroup col.col-company { width: 160px; }
+    colgroup col.col-close   { width: 100px; }
+    colgroup col.col-mcap    { width: 100px; }
+    colgroup col.col-nov1    { width: 155px; }
+    colgroup col.col-ath     { width: 155px; }
+
+    thead th {
+      background: #161b22;
+      color: #7d8590;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 10px 12px;
+      border-bottom: 2px solid #30363d;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      user-select: none;
+    }
+
+    thead th.right { text-align: right; }
+
+    tbody tr {
+      border-bottom: 1px solid #21262d;
+      transition: background 0.1s ease;
+    }
+
+    tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.015); }
+    tbody tr:hover { background: #1c2333; }
+
+    td {
+      padding: 7px 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    td.rank { color: #484f58; font-size: 11px; text-align: center; }
+    td.ticker { font-weight: 600; }
+    td.ticker a { color: #58a6ff; text-decoration: none; }
+    td.ticker a:hover { text-decoration: underline; }
+    td.company { color: #8b949e; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.pct { font-weight: 600; border-radius: 2px; }
+
+    footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer .meta { font-size: 11px; color: #484f58; }
+    footer .refresh-btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 6px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .variant-label { font-size: 11px; color: #f0883e; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Death of SaaS?</h1>
+        <p class="subtitle">Performance snapshot &mdash; Since Nov 3, 2025</p>
+        <p class="variant-label">Mockup: Top + SaaS two-section layout</p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div style="display:flex;align-items:center;gap:20px">
+          <div class="index-badge" style="color:#7ee787">
+            <span class="idx-label">S&amp;P 500</span>
+            <span class="idx-value">+0.1%</span>
+          </div>
+          <div class="index-badge" style="color:#f85149">
+            <span class="idx-label">Nasdaq</span>
+            <span class="idx-value">-4.6%</span>
+          </div>
+          <div class="index-badge" style="color:#7ee787">
+            <span class="idx-label">Dow</span>
+            <span class="idx-value">+5.0%</span>
+          </div>
+        </div>
+        <span class="last-updated">Last updated: Feb 14, 2026 22:37 UTC</span>
+      </div>
+    </header>
+
+    <!-- ============================================================ -->
+    <!-- TOP section — FAANG + major tech -->
+    <!-- ============================================================ -->
+    <div class="section-header">
+      <span class="section-title">Top</span>
+      <span class="section-count">8 companies</span>
+      <span class="section-spacer"></span>
+      <div class="section-medians">
+        <div class="med-group">
+          <span class="med-label">Median % Nov 3</span>
+          <span class="med-value" style="color:#7ee787">+5.0%</span>
+        </div>
+        <div class="med-group">
+          <span class="med-label">Median % ATH</span>
+          <span class="med-value" style="color:#f85149">-9.2%</span>
+        </div>
+      </div>
+    </div>
+
+    <table>
+      <colgroup>
+        <col class="col-rank">
+        <col class="col-ticker">
+        <col class="col-company">
+        <col class="col-close">
+        <col class="col-mcap">
+        <col class="col-nov1">
+        <col class="col-ath">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ticker</th>
+          <th>Company</th>
+          <th class="right">Last Close</th>
+          <th class="right">Market Cap</th>
+          <th class="right">% Since Nov 3</th>
+          <th class="right">% Since ATH</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rank">1</td>
+          <td class="ticker"><a href="#">INTC</a></td>
+          <td class="company">Intel</td>
+          <td class="num">$20.41</td>
+          <td class="num">$88.0B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.10);color:#c9d1d9" title="$22.68">-10.0%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.45);color:#fff" title="$68.49">-70.2%</td>
+        </tr>
+        <tr>
+          <td class="rank">2</td>
+          <td class="ticker"><a href="#">AMD</a></td>
+          <td class="company">AMD</td>
+          <td class="num">$112.85</td>
+          <td class="num">$183.2B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9" title="$121.46">-7.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.38);color:#fff" title="$227.30">-50.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">3</td>
+          <td class="ticker"><a href="#">AMZN</a></td>
+          <td class="company">Amazon</td>
+          <td class="num">$228.93</td>
+          <td class="num">$2.4T</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.04);color:#c9d1d9" title="$233.29">-1.9%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9" title="$242.52">-5.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">4</td>
+          <td class="ticker"><a href="#">META</a></td>
+          <td class="company">Meta Platforms</td>
+          <td class="num">$719.01</td>
+          <td class="num">$1.8T</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.18);color:#c9d1d9" title="$577.82">+24.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.02);color:#c9d1d9" title="$740.91">-3.0%</td>
+        </tr>
+        <tr>
+          <td class="rank">5</td>
+          <td class="ticker"><a href="#">AAPL</a></td>
+          <td class="company">Apple</td>
+          <td class="num">$232.80</td>
+          <td class="num">$3.5T</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.10);color:#c9d1d9" title="$222.91">+4.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.03);color:#c9d1d9" title="$243.96">-4.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">6</td>
+          <td class="ticker"><a href="#">GOOGL</a></td>
+          <td class="company">Alphabet</td>
+          <td class="num">$185.22</td>
+          <td class="num">$2.3T</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.14);color:#c9d1d9" title="$170.85">+8.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.04);color:#c9d1d9" title="$207.71">-10.8%</td>
+        </tr>
+        <tr>
+          <td class="rank">7</td>
+          <td class="ticker"><a href="#">NFLX</a></td>
+          <td class="company">Netflix</td>
+          <td class="num">$1,068.44</td>
+          <td class="num">$460.5B</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.22);color:#c9d1d9" title="$830.30">+28.7%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.01);color:#c9d1d9" title="$1,064.50">+0.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">8</td>
+          <td class="ticker"><a href="#">NVDA</a></td>
+          <td class="company">NVIDIA</td>
+          <td class="num">$131.28</td>
+          <td class="num">$3.2T</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.02);color:#c9d1d9" title="$132.76">-1.1%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.10);color:#c9d1d9" title="$153.13">-14.3%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ============================================================ -->
+    <!-- SaaS section -->
+    <!-- ============================================================ -->
+    <div class="section-header">
+      <span class="section-title">SaaS</span>
+      <span class="section-count">160 companies</span>
+      <span class="section-spacer"></span>
+      <div class="section-medians">
+        <div class="med-group">
+          <span class="med-label">Median % Nov 3</span>
+          <span class="med-value" style="color:#f85149">-28.0%</span>
+        </div>
+        <div class="med-group">
+          <span class="med-label">Median % ATH</span>
+          <span class="med-value" style="color:#f85149">-46.5%</span>
+        </div>
+      </div>
+    </div>
+
+    <table>
+      <colgroup>
+        <col class="col-rank">
+        <col class="col-ticker">
+        <col class="col-company">
+        <col class="col-close">
+        <col class="col-mcap">
+        <col class="col-nov1">
+        <col class="col-ath">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ticker</th>
+          <th>Company</th>
+          <th class="right">Last Close</th>
+          <th class="right">Market Cap</th>
+          <th class="right">% Since Nov 3</th>
+          <th class="right">% Since ATH</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rank">1</td>
+          <td class="ticker"><a href="#">ASAN</a></td>
+          <td class="company">Asana</td>
+          <td class="num">$12.41</td>
+          <td class="num">$2.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff" title="$23.10">-46.3%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.55);color:#fff" title="$145.79">-91.5%</td>
+        </tr>
+        <tr>
+          <td class="rank">2</td>
+          <td class="ticker"><a href="#">BRZE</a></td>
+          <td class="company">Braze</td>
+          <td class="num">$32.75</td>
+          <td class="num">$3.3B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.48);color:#fff" title="$55.15">-40.6%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.48);color:#fff" title="$83.11">-60.6%</td>
+        </tr>
+        <tr>
+          <td class="rank">3</td>
+          <td class="ticker"><a href="#">DOCN</a></td>
+          <td class="company">DigitalOcean</td>
+          <td class="num">$27.05</td>
+          <td class="num">$2.5B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.42);color:#fff" title="$41.21">-34.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.50);color:#fff" title="$133.40">-79.7%</td>
+        </tr>
+        <tr>
+          <td class="rank">4</td>
+          <td class="ticker"><a href="#">CRM</a></td>
+          <td class="company">Salesforce</td>
+          <td class="num">$312.64</td>
+          <td class="num">$300.1B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9" title="$330.22">-5.3%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.06);color:#c9d1d9" title="$348.86">-10.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">5</td>
+          <td class="ticker"><a href="#">NOW</a></td>
+          <td class="company">ServiceNow</td>
+          <td class="num">$945.12</td>
+          <td class="num">$195.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.05);color:#c9d1d9" title="$981.30">-3.7%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.08);color:#c9d1d9" title="$1,051.26">-10.1%</td>
+        </tr>
+        <tr>
+          <td class="rank">6</td>
+          <td class="ticker"><a href="#">SNOW</a></td>
+          <td class="company">Snowflake</td>
+          <td class="num">$165.72</td>
+          <td class="num">$55.3B</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.10);color:#c9d1d9" title="$150.43">+10.2%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.35);color:#fff" title="$401.89">-58.8%</td>
+        </tr>
+        <tr>
+          <td class="rank">7</td>
+          <td class="ticker"><a href="#">DDOG</a></td>
+          <td class="company">Datadog</td>
+          <td class="num">$125.00</td>
+          <td class="num">$42.1B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.20);color:#c9d1d9" title="$146.88">-14.9%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.22);color:#c9d1d9" title="$196.56">-36.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">8</td>
+          <td class="ticker"><a href="#">NET</a></td>
+          <td class="company">Cloudflare</td>
+          <td class="num">$120.35</td>
+          <td class="num">$41.8B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.14);color:#c9d1d9" title="$133.50">-9.8%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.15);color:#c9d1d9" title="$219.00">-45.0%</td>
+        </tr>
+        <tr>
+          <td class="rank">9</td>
+          <td class="ticker"><a href="#">ZS</a></td>
+          <td class="company">Zscaler</td>
+          <td class="num">$186.50</td>
+          <td class="num">$28.0B</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.12);color:#c9d1d9" title="$201.41">-7.4%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.30);color:#fff" title="$376.11">-50.4%</td>
+        </tr>
+        <tr>
+          <td class="rank">10</td>
+          <td class="ticker"><a href="#">CRWD</a></td>
+          <td class="company">CrowdStrike</td>
+          <td class="num">$371.00</td>
+          <td class="num">$91.2B</td>
+          <td class="num pct" style="background:rgba(40,167,69,0.08);color:#c9d1d9" title="$351.26">+5.6%</td>
+          <td class="num pct" style="background:rgba(220,50,47,0.05);color:#c9d1d9" title="$398.78">-7.0%</td>
+        </tr>
+        <tr>
+          <td class="rank" colspan="7" style="text-align:center;color:#484f58;padding:12px;font-style:italic">
+            &hellip; 150 more SaaS companies &hellip;
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <footer>
+      <span class="meta">168 companies total (8 Top + 160 SaaS)</span>
+      <button class="refresh-btn">Refresh Data</button>
+    </footer>
+  </div>
+</body>
+</html>

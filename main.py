@@ -62,14 +62,32 @@ def load_tickers(path: Path) -> dict[str, str]:
 TICKERS: dict[str, str] = load_tickers(CSV_PATH)
 log.info("Loaded %d tickers from %s", len(TICKERS), CSV_PATH)
 
-# Index benchmarks (not SaaS — for comparison on charts/summary bar)
+# Top tech / FAANG (separate section on dashboard)
+TOP_TICKERS: dict[str, str] = {
+    "META": "Meta Platforms",
+    "AAPL": "Apple",
+    "AMZN": "Amazon",
+    "GOOGL": "Alphabet",
+    "NVDA": "NVIDIA",
+    "NFLX": "Netflix",
+    "AMD": "AMD",
+    "INTC": "Intel",
+    "TSM": "TSMC",
+    "TSLA": "Tesla",
+    "AVGO": "Broadcom",
+    "SSNLF": "Samsung",
+    "CSCO": "Cisco",
+}
+
+# Index benchmarks (not in any table — header badges + chart overlays)
 INDEX_TICKERS: dict[str, str] = {
     "SPY": "S&P 500",
     "QQQ": "Nasdaq",
     "DIA": "Dow",
 }
-# All tickers we fetch data for (SaaS + indices)
-ALL_TICKERS: dict[str, str] = {**TICKERS, **INDEX_TICKERS}
+
+# All tickers we fetch data for (SaaS + Top + indices)
+ALL_TICKERS: dict[str, str] = {**TICKERS, **TOP_TICKERS, **INDEX_TICKERS}
 
 # ---------------------------------------------------------------------------
 # Database
@@ -397,64 +415,70 @@ def build_dashboard_data() -> dict:
             for p in session.query(Price).filter(Price.date == REFERENCE_DATE).all()
         }
 
-        rows = []
+        top_rows = []
+        saas_rows = []
         index_pcts: dict[str, float | None] = {}  # ticker -> % since Nov 3
 
-        for p in latest_prices:
-            ref_close = ref_prices.get(p.ticker)
-            pct_nov1 = ((p.close - ref_close) / ref_close * 100) if ref_close else None
-
-            # Index tickers go into summary bar, not the table
-            if p.ticker in INDEX_TICKERS:
-                index_pcts[p.ticker] = pct_nov1
-                continue
-
+        def _make_row(p, ref_close, pct_nov1):
             pct_ath = (
                 ((p.close - p.all_time_high) / p.all_time_high * 100)
                 if p.all_time_high
                 else None
             )
+            return {
+                "ticker": p.ticker,
+                "company": p.company,
+                "close": p.close,
+                "close_fmt": f"${p.close:,.2f}",
+                "market_cap": p.market_cap,
+                "mcap_fmt": _fmt_mcap(p.market_cap),
+                "pct_nov1": pct_nov1,
+                "pct_nov1_fmt": f"{pct_nov1:+.1f}%" if pct_nov1 is not None else "N/A",
+                "pct_nov1_style": _heatmap_nov1(pct_nov1)
+                if pct_nov1 is not None
+                else {"bg": "transparent", "fg": "#c9d1d9"},
+                "ref_close_fmt": f"${ref_close:,.2f}" if ref_close else "N/A",
+                "pct_ath": pct_ath,
+                "pct_ath_fmt": f"{pct_ath:+.1f}%" if pct_ath is not None else "N/A",
+                "pct_ath_style": _heatmap_ath(pct_ath)
+                if pct_ath is not None
+                else {"bg": "transparent", "fg": "#c9d1d9"},
+                "ath_price_fmt": f"${p.all_time_high:,.2f}"
+                if p.all_time_high
+                else "N/A",
+                "date": p.date,
+            }
 
-            rows.append(
-                {
-                    "ticker": p.ticker,
-                    "company": p.company,
-                    "close": p.close,
-                    "close_fmt": f"${p.close:,.2f}",
-                    "market_cap": p.market_cap,
-                    "mcap_fmt": _fmt_mcap(p.market_cap),
-                    "pct_nov1": pct_nov1,
-                    "pct_nov1_fmt": f"{pct_nov1:+.1f}%"
-                    if pct_nov1 is not None
-                    else "N/A",
-                    "pct_nov1_style": _heatmap_nov1(pct_nov1)
-                    if pct_nov1 is not None
-                    else {"bg": "transparent", "fg": "#c9d1d9"},
-                    "ref_close_fmt": f"${ref_close:,.2f}" if ref_close else "N/A",
-                    "pct_ath": pct_ath,
-                    "pct_ath_fmt": f"{pct_ath:+.1f}%" if pct_ath is not None else "N/A",
-                    "pct_ath_style": _heatmap_ath(pct_ath)
-                    if pct_ath is not None
-                    else {"bg": "transparent", "fg": "#c9d1d9"},
-                    "ath_price_fmt": f"${p.all_time_high:,.2f}"
-                    if p.all_time_high
-                    else "N/A",
-                    "date": p.date,
-                }
+        for p in latest_prices:
+            ref_close = ref_prices.get(p.ticker)
+            pct_nov1 = ((p.close - ref_close) / ref_close * 100) if ref_close else None
+
+            if p.ticker in INDEX_TICKERS:
+                index_pcts[p.ticker] = pct_nov1
+            elif p.ticker in TOP_TICKERS:
+                top_rows.append(_make_row(p, ref_close, pct_nov1))
+            else:
+                saas_rows.append(_make_row(p, ref_close, pct_nov1))
+
+        # Sort both sections by % since Nov 3 ascending (worst first)
+        _sort_key = lambda r: r["pct_nov1"] if r["pct_nov1"] is not None else 0
+        top_rows.sort(key=_sort_key)
+        saas_rows.sort(key=_sort_key)
+
+        # Compute medians per section
+        def _medians(rows):
+            n1 = [r["pct_nov1"] for r in rows if r["pct_nov1"] is not None]
+            at = [r["pct_ath"] for r in rows if r["pct_ath"] is not None]
+            return (
+                statistics.median(n1) if n1 else None,
+                statistics.median(at) if at else None,
             )
 
-        # Sort by % since Nov 1 ascending (worst first)
-        rows.sort(key=lambda r: r["pct_nov1"] if r["pct_nov1"] is not None else 0)
+        top_med_nov1, top_med_ath = _medians(top_rows)
+        saas_med_nov1, saas_med_ath = _medians(saas_rows)
 
-        # Compute medians
-        nov1_vals = [r["pct_nov1"] for r in rows if r["pct_nov1"] is not None]
-        ath_vals = [r["pct_ath"] for r in rows if r["pct_ath"] is not None]
-
-        median_nov1 = statistics.median(nov1_vals) if nov1_vals else None
-        median_ath = statistics.median(ath_vals) if ath_vals else None
-
-        # Build index benchmark data for summary bar
-        def _fmt_idx(pct: float | None) -> str:
+        # Build index benchmark data for header
+        def _fmt_pct(pct: float | None) -> str:
             return f"{pct:+.1f}%" if pct is not None else "N/A"
 
         indices = [
@@ -462,7 +486,7 @@ def build_dashboard_data() -> dict:
                 "ticker": t,
                 "label": INDEX_TICKERS[t],
                 "pct": index_pcts.get(t),
-                "pct_fmt": _fmt_idx(index_pcts.get(t)),
+                "pct_fmt": _fmt_pct(index_pcts.get(t)),
             }
             for t in INDEX_TICKERS
         ]
@@ -471,26 +495,22 @@ def build_dashboard_data() -> dict:
         last_updated = session.query(func.max(Price.fetched_at)).scalar()
 
         return {
-            "rows": rows,
+            "top_rows": top_rows,
+            "rows": saas_rows,
             "indices": indices,
-            "median_nov1": median_nov1,
-            "median_nov1_fmt": f"{median_nov1:+.1f}%"
-            if median_nov1 is not None
-            else "N/A",
-            "median_nov1_style": _heatmap_nov1(median_nov1)
-            if median_nov1 is not None
-            else {"bg": "transparent", "fg": "#c9d1d9"},
-            "median_ath": median_ath,
-            "median_ath_fmt": f"{median_ath:+.1f}%"
-            if median_ath is not None
-            else "N/A",
-            "median_ath_style": _heatmap_ath(median_ath)
-            if median_ath is not None
-            else {"bg": "transparent", "fg": "#c9d1d9"},
+            "top_med_nov1": top_med_nov1,
+            "top_med_nov1_fmt": _fmt_pct(top_med_nov1),
+            "top_med_ath": top_med_ath,
+            "top_med_ath_fmt": _fmt_pct(top_med_ath),
+            "saas_med_nov1": saas_med_nov1,
+            "saas_med_nov1_fmt": _fmt_pct(saas_med_nov1),
+            "saas_med_ath": saas_med_ath,
+            "saas_med_ath_fmt": _fmt_pct(saas_med_ath),
             "last_updated": last_updated.strftime("%b %d, %Y %H:%M UTC")
             if last_updated
             else "Never",
-            "ticker_count": len(TICKERS),
+            "top_count": len(TOP_TICKERS),
+            "saas_count": len(TICKERS),
         }
     finally:
         session.close()
