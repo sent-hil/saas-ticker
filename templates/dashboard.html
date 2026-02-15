@@ -27,7 +27,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1400px;
       margin: 0 auto;
     }
 
@@ -70,22 +70,20 @@
       table-layout: fixed;
     }
 
-    colgroup col.col-rank    { width: 36px; }
-    colgroup col.col-ticker  { width: 72px; }
-    colgroup col.col-company { width: 160px; }
-    colgroup col.col-close   { width: 100px; }
-    colgroup col.col-mcap    { width: 100px; }
-    colgroup col.col-nov1    { width: 155px; }
-    colgroup col.col-ath     { width: 155px; }
+    colgroup col.col-rank    { width: 32px; }
+    colgroup col.col-ticker  { width: 68px; }
+    colgroup col.col-company { /* flexible */ }
+    colgroup col.col-nov1    { width: 120px; }
+    colgroup col.col-ath     { width: 120px; }
 
     thead th {
       background: #161b22;
       color: #7d8590;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
-      padding: 10px 12px;
+      letter-spacing: 0.5px;
+      padding: 8px 10px;
       border-bottom: 2px solid #30363d;
       position: sticky;
       top: 0;
@@ -142,7 +140,7 @@
     }
 
     td {
-      padding: 7px 12px;
+      padding: 6px 10px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -255,19 +253,33 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* Section headers with inline medians */
+    /* Two-panel layout */
+    .panels {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .panel {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      background: rgba(22, 27, 34, 0.5);
+      overflow: hidden;
+    }
+
+    .table-wrap {
+      overflow-y: auto;
+    }
+
+    /* Section headers inside panels */
     .section-header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-top: 28px;
-      margin-bottom: 8px;
-      padding-bottom: 6px;
+      gap: 10px;
+      padding: 12px 14px 10px;
       border-bottom: 1px solid #21262d;
-    }
-
-    .section-header:first-of-type {
-      margin-top: 0;
     }
 
     .section-title {
@@ -289,14 +301,14 @@
     .section-medians {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       font-size: 11px;
     }
 
     .section-medians .med-group {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
     .section-medians .med-label {
@@ -306,12 +318,15 @@
     .section-medians .med-value {
       font-weight: 600;
       font-variant-numeric: tabular-nums;
+    }
+
+    .section-medians .med-value.clickable {
       cursor: pointer;
       user-select: none;
       transition: opacity 0.15s ease;
     }
 
-    .section-medians .med-value:hover {
+    .section-medians .med-value.clickable:hover {
       opacity: 0.85;
     }
 
@@ -330,7 +345,7 @@
     /* Chart panels */
     .chart-panel {
       display: none;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       border: 1px solid #30363d;
       border-radius: 6px;
       overflow: hidden;
@@ -453,7 +468,7 @@
     <!-- Chart panels (hidden by default, toggled by badge clicks) -->
     <div id="panel-nov3" class="chart-panel">
       <div class="chart-header">
-        <span>% Since Nov 3, 2025</span>
+        <span>SaaS &mdash; % Since Nov 3, 2025</span>
         <div class="chart-legend">
           <div class="chart-legend-item">
             <span class="chart-legend-swatch" style="background:#f85149"></span>
@@ -480,29 +495,6 @@
       </div>
     </div>
 
-    <div id="panel-ath" class="chart-panel">
-      <div class="chart-header">
-        <span>Median % Since All-Time High</span>
-        <div class="chart-legend">
-          <div class="chart-legend-item">
-            <span class="chart-legend-swatch" style="background:#f0883e"></span>
-            <span>Median</span>
-          </div>
-        </div>
-        <button class="chart-close" onclick="toggleChart('ath')">&times;</button>
-      </div>
-      <div class="chart-body">
-        <canvas id="chart-ath"></canvas>
-        <div class="chart-loading" id="loading-ath"><span class="spinner"></span> Loading chart&hellip;</div>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- TOP section -->
-    <!-- ============================================================ -->
-    {% if top_rows %}
-
-    <!-- Top chart panels (hidden by default, toggled by badge clicks) -->
     <div id="panel-top-nov3" class="chart-panel">
       <div class="chart-header">
         <span>Top &mdash; % Since Nov 3, 2025</span>
@@ -532,130 +524,114 @@
       </div>
     </div>
 
-    <div id="panel-top-ath" class="chart-panel">
-      <div class="chart-header">
-        <span>Top &mdash; Median % Since All-Time High</span>
-        <div class="chart-legend">
-          <div class="chart-legend-item">
-            <span class="chart-legend-swatch" style="background:#f0883e"></span>
-            <span>Median</span>
+    <!-- ============================================================ -->
+    <!-- Two-panel layout: SaaS + Top side by side                  -->
+    <!-- ============================================================ -->
+    <div class="panels">
+
+      <!-- LEFT PANEL: SaaS -->
+      <div class="panel">
+        <div class="section-header">
+          <span class="section-title">SaaS</span>
+          <span class="section-count">{{ saas_count }} companies</span>
+          <span class="section-spacer"></span>
+          <div class="section-medians">
+            <div class="med-group">
+              <span class="med-label">Nov 3</span>
+              <span class="med-value clickable" id="badge-nov3" style="color:{% if saas_med_nov1 is not none and saas_med_nov1 < 0 %}#f85149{% elif saas_med_nov1 is not none and saas_med_nov1 > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('nov3')">{{ saas_med_nov1_fmt }}<span class="badge-arrow">&#9660;</span></span>
+            </div>
+            <div class="med-group">
+              <span class="med-label">ATH</span>
+              <span class="med-value" style="color:{% if saas_med_ath is not none and saas_med_ath < 0 %}#f85149{% elif saas_med_ath is not none and saas_med_ath > 0 %}#7ee787{% else %}#c9d1d9{% endif %}">{{ saas_med_ath_fmt }}</span>
+            </div>
           </div>
         </div>
-        <button class="chart-close" onclick="toggleChart('top-ath')">&times;</button>
+        <div class="table-wrap">
+          <table class="dashboard-table">
+            <colgroup>
+              <col class="col-rank">
+              <col class="col-ticker">
+              <col class="col-company">
+              <col class="col-nov1">
+              <col class="col-ath">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="sortable" data-sort="string" data-col="1">Ticker<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+                <th class="sortable" data-sort="string" data-col="2">Company<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+                <th class="sortable right sort-asc" data-sort="number" data-col="3">% Since Nov 3<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+                <th class="sortable right" data-sort="number" data-col="4">% Since ATH<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="ticker"><a href="https://finance.yahoo.com/quote/{{ row.ticker }}" target="_blank">{{ row.ticker }}</a></td>
+                <td class="company">{{ row.company }}</td>
+                <td class="num pct" style="background:{{ row.pct_nov1_style.bg }};color:{{ row.pct_nov1_style.fg }}" data-value="{{ row.pct_nov1 if row.pct_nov1 is not none else -9999 }}" title="{{ row.ref_close_fmt }}">{{ row.pct_nov1_fmt }}</td>
+                <td class="num pct" style="background:{{ row.pct_ath_style.bg }};color:{{ row.pct_ath_style.fg }}" data-value="{{ row.pct_ath if row.pct_ath is not none else -9999 }}" title="{{ row.ath_price_fmt }}">{{ row.pct_ath_fmt }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="chart-body">
-        <canvas id="chart-top-ath"></canvas>
-        <div class="chart-loading" id="loading-top-ath"><span class="spinner"></span> Loading chart&hellip;</div>
+
+      <!-- RIGHT PANEL: Top -->
+      {% if top_rows %}
+      <div class="panel">
+        <div class="section-header">
+          <span class="section-title">Top</span>
+          <span class="section-count">{{ top_count }} companies</span>
+          <span class="section-spacer"></span>
+          <div class="section-medians">
+            <div class="med-group">
+              <span class="med-label">Nov 3</span>
+              <span class="med-value clickable" id="badge-top-nov3" style="color:{% if top_med_nov1 is not none and top_med_nov1 < 0 %}#f85149{% elif top_med_nov1 is not none and top_med_nov1 > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('top-nov3')">{{ top_med_nov1_fmt }}<span class="badge-arrow">&#9660;</span></span>
+            </div>
+            <div class="med-group">
+              <span class="med-label">ATH</span>
+              <span class="med-value" style="color:{% if top_med_ath is not none and top_med_ath < 0 %}#f85149{% elif top_med_ath is not none and top_med_ath > 0 %}#7ee787{% else %}#c9d1d9{% endif %}">{{ top_med_ath_fmt }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="dashboard-table">
+            <colgroup>
+              <col class="col-rank">
+              <col class="col-ticker">
+              <col class="col-company">
+              <col class="col-nov1">
+              <col class="col-ath">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="sortable" data-sort="string" data-col="1">Ticker<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+                <th class="sortable" data-sort="string" data-col="2">Company<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+                <th class="sortable right sort-asc" data-sort="number" data-col="3">% Since Nov 3<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+                <th class="sortable right" data-sort="number" data-col="4">% Since ATH<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in top_rows %}
+              <tr>
+                <td class="rank">{{ loop.index }}</td>
+                <td class="ticker"><a href="https://finance.yahoo.com/quote/{{ row.ticker }}" target="_blank">{{ row.ticker }}</a></td>
+                <td class="company">{{ row.company }}</td>
+                <td class="num pct" style="background:{{ row.pct_nov1_style.bg }};color:{{ row.pct_nov1_style.fg }}" data-value="{{ row.pct_nov1 if row.pct_nov1 is not none else -9999 }}" title="{{ row.ref_close_fmt }}">{{ row.pct_nov1_fmt }}</td>
+                <td class="num pct" style="background:{{ row.pct_ath_style.bg }};color:{{ row.pct_ath_style.fg }}" data-value="{{ row.pct_ath if row.pct_ath is not none else -9999 }}" title="{{ row.ath_price_fmt }}">{{ row.pct_ath_fmt }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
+      {% endif %}
+
     </div>
-
-    <div class="section-header">
-      <span class="section-title">Top</span>
-      <span class="section-count">{{ top_count }} companies</span>
-      <span class="section-spacer"></span>
-      <div class="section-medians">
-        <div class="med-group">
-          <span class="med-label">Median % Nov 3</span>
-          <span class="med-value" id="badge-top-nov3" style="color:{% if top_med_nov1 is not none and top_med_nov1 < 0 %}#f85149{% elif top_med_nov1 is not none and top_med_nov1 > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('top-nov3')">{{ top_med_nov1_fmt }}<span class="badge-arrow">&#9660;</span></span>
-        </div>
-        <div class="med-group">
-          <span class="med-label">Median % ATH</span>
-          <span class="med-value" id="badge-top-ath" style="color:{% if top_med_ath is not none and top_med_ath < 0 %}#f85149{% elif top_med_ath is not none and top_med_ath > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('top-ath')">{{ top_med_ath_fmt }}<span class="badge-arrow">&#9660;</span></span>
-        </div>
-      </div>
-    </div>
-
-    <table class="dashboard-table">
-      <colgroup>
-        <col class="col-rank">
-        <col class="col-ticker">
-        <col class="col-company">
-        <col class="col-close">
-        <col class="col-mcap">
-        <col class="col-nov1">
-        <col class="col-ath">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th class="sortable" data-sort="string" data-col="1">Ticker<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable" data-sort="string" data-col="2">Company<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right" data-sort="number" data-col="3">Last Close<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right" data-sort="number" data-col="4">Market Cap<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right sort-asc" data-sort="number" data-col="5">% Since Nov 3<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right" data-sort="number" data-col="6">% Since ATH<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in top_rows %}
-        <tr>
-          <td class="rank">{{ loop.index }}</td>
-          <td class="ticker"><a href="https://finance.yahoo.com/quote/{{ row.ticker }}" target="_blank">{{ row.ticker }}</a></td>
-          <td class="company">{{ row.company }}</td>
-          <td class="num" data-value="{{ row.close if row.close is not none else 0 }}">{{ row.close_fmt }}</td>
-          <td class="num" data-value="{{ row.market_cap if row.market_cap is not none else 0 }}">{{ row.mcap_fmt }}</td>
-          <td class="num pct" style="background:{{ row.pct_nov1_style.bg }};color:{{ row.pct_nov1_style.fg }}" data-value="{{ row.pct_nov1 if row.pct_nov1 is not none else -9999 }}" title="{{ row.ref_close_fmt }}">{{ row.pct_nov1_fmt }}</td>
-          <td class="num pct" style="background:{{ row.pct_ath_style.bg }};color:{{ row.pct_ath_style.fg }}" data-value="{{ row.pct_ath if row.pct_ath is not none else -9999 }}" title="{{ row.ath_price_fmt }}">{{ row.pct_ath_fmt }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
-    <!-- ============================================================ -->
-    <!-- SaaS section -->
-    <!-- ============================================================ -->
-    <div class="section-header">
-      <span class="section-title">SaaS</span>
-      <span class="section-count">{{ saas_count }} companies</span>
-      <span class="section-spacer"></span>
-      <div class="section-medians">
-        <div class="med-group">
-          <span class="med-label">Median % Nov 3</span>
-          <span class="med-value" id="badge-nov3" style="color:{% if saas_med_nov1 is not none and saas_med_nov1 < 0 %}#f85149{% elif saas_med_nov1 is not none and saas_med_nov1 > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('nov3')">{{ saas_med_nov1_fmt }}<span class="badge-arrow">&#9660;</span></span>
-        </div>
-        <div class="med-group">
-          <span class="med-label">Median % ATH</span>
-          <span class="med-value" id="badge-ath" style="color:{% if saas_med_ath is not none and saas_med_ath < 0 %}#f85149{% elif saas_med_ath is not none and saas_med_ath > 0 %}#7ee787{% else %}#c9d1d9{% endif %}" onclick="toggleChart('ath')">{{ saas_med_ath_fmt }}<span class="badge-arrow">&#9660;</span></span>
-        </div>
-      </div>
-    </div>
-
-    <table class="dashboard-table">
-      <colgroup>
-        <col class="col-rank">
-        <col class="col-ticker">
-        <col class="col-company">
-        <col class="col-close">
-        <col class="col-mcap">
-        <col class="col-nov1">
-        <col class="col-ath">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th class="sortable" data-sort="string" data-col="1">Ticker<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable" data-sort="string" data-col="2">Company<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right" data-sort="number" data-col="3">Last Close<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right" data-sort="number" data-col="4">Market Cap<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right sort-asc" data-sort="number" data-col="5">% Since Nov 3<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-          <th class="sortable right" data-sort="number" data-col="6">% Since ATH<span class="sort-arrows"><span class="arrow arrow-up">&#9650;</span><span class="arrow arrow-down">&#9660;</span></span></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-        <tr>
-          <td class="rank">{{ loop.index }}</td>
-          <td class="ticker"><a href="https://finance.yahoo.com/quote/{{ row.ticker }}" target="_blank">{{ row.ticker }}</a></td>
-          <td class="company">{{ row.company }}</td>
-          <td class="num" data-value="{{ row.close if row.close is not none else 0 }}">{{ row.close_fmt }}</td>
-          <td class="num" data-value="{{ row.market_cap if row.market_cap is not none else 0 }}">{{ row.mcap_fmt }}</td>
-          <td class="num pct" style="background:{{ row.pct_nov1_style.bg }};color:{{ row.pct_nov1_style.fg }}" data-value="{{ row.pct_nov1 if row.pct_nov1 is not none else -9999 }}" title="{{ row.ref_close_fmt }}">{{ row.pct_nov1_fmt }}</td>
-          <td class="num pct" style="background:{{ row.pct_ath_style.bg }};color:{{ row.pct_ath_style.fg }}" data-value="{{ row.pct_ath if row.pct_ath is not none else -9999 }}" title="{{ row.ath_price_fmt }}">{{ row.pct_ath_fmt }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
     {% else %}
     <div class="empty-state">
       <p>No price data yet. Click "Refresh Data" to fetch prices.</p>
@@ -770,35 +746,34 @@
     })();
 
     // -----------------------------------------------------------------------
-    // Median chart with index benchmark hover highlighting
+    // Median charts with index benchmark hover highlighting
     // -----------------------------------------------------------------------
     (function() {
-      var CHART_KEYS = ['nov3', 'ath', 'top-nov3', 'top-ath'];
-      var charts = {};
-      var chartData = {};
-      var hoveredIndex = {};
-      CHART_KEYS.forEach(function(k) { charts[k] = null; chartData[k] = null; hoveredIndex[k] = -1; });
+      // Chart config: key → { section, label, canvasId, loadingId }
+      var CHARTS = {
+        'nov3':     { section: 'saas', label: 'SaaS Median', canvasId: 'chart-nov3',     loadingId: 'loading-nov3' },
+        'top-nov3': { section: 'top',  label: 'Top Median',  canvasId: 'chart-top-nov3', loadingId: 'loading-top-nov3' }
+      };
 
-      // Index line colors (full and faint variants)
+      var charts = {};       // key → Chart instance
+      var hoveredIdx = {};   // key → dataset index being hovered
+      var idxRanges = {};    // key → { start, end }
+      Object.keys(CHARTS).forEach(function(k) { charts[k] = null; hoveredIdx[k] = -1; idxRanges[k] = {}; });
+
+      // Index line colors
       var INDEX_COLORS = { SPY: '#58a6ff', QQQ: '#d2a8ff', DIA: '#7ee787' };
       var INDEX_FAINT  = { SPY: 'rgba(88,166,255,0.2)', QQQ: 'rgba(210,168,255,0.2)', DIA: 'rgba(126,231,135,0.2)' };
-      // Map dataset labels back to ticker keys for color lookup
       var LABEL_TO_TICKER = { 'S&P 500': 'SPY', 'Nasdaq': 'QQQ', 'Dow': 'DIA' };
 
-      // Track which datasets are index lines per chart key
-      var indexRanges = {};
-      CHART_KEYS.forEach(function(k) { indexRanges[k] = {}; });
-
-      // Format ISO date "2025-11-03" → "Nov 3"
       var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       function fmtDate(iso) {
         var parts = iso.split('-');
         return MONTHS[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
       }
 
-      function resetIndexStyles(chart, metric) {
-        var r = indexRanges[metric];
-        chart.data.datasets.forEach(function(ds, i) {
+      function resetIndexStyles(c, key) {
+        var r = idxRanges[key];
+        c.data.datasets.forEach(function(ds, i) {
           if (i >= r.start && i < r.end) {
             var ticker = LABEL_TO_TICKER[ds.label];
             if (ticker) {
@@ -810,9 +785,9 @@
         });
       }
 
-      function highlightIndex(chart, metric, dsIdx) {
-        var r = indexRanges[metric];
-        chart.data.datasets.forEach(function(ds, i) {
+      function highlightIndex(c, key, dsIdx) {
+        var r = idxRanges[key];
+        c.data.datasets.forEach(function(ds, i) {
           if (i >= r.start && i < r.end) {
             var ticker = LABEL_TO_TICKER[ds.label];
             if (!ticker) return;
@@ -829,27 +804,19 @@
         });
       }
 
-      // Parse chart key into API params: "top-nov3" → { metric: "nov3", section: "top" }
-      function parseChartKey(key) {
-        if (key.indexOf('top-') === 0) {
-          return { metric: key.slice(4), section: 'top' };
-        }
-        return { metric: key, section: 'saas' };
-      }
-
       // Toggle chart panel open/closed
       window.toggleChart = function(key) {
         var panel = document.getElementById('panel-' + key);
         var badge = document.getElementById('badge-' + key);
-        if (!panel || !badge) return;
+        if (!panel) return;
         var isOpen = panel.classList.contains('open');
 
         if (isOpen) {
           panel.classList.remove('open');
-          badge.classList.remove('expanded');
+          if (badge) badge.classList.remove('expanded');
         } else {
           panel.classList.add('open');
-          badge.classList.add('expanded');
+          if (badge) badge.classList.add('expanded');
           if (!charts[key]) {
             loadChart(key);
           }
@@ -858,12 +825,12 @@
 
       // Fetch data and render chart
       function loadChart(key) {
-        var loading = document.getElementById('loading-' + key);
-        var params = parseChartKey(key);
-        fetch('/api/chart/median-history?metric=' + params.metric + '&section=' + params.section)
+        var cfg = CHARTS[key];
+        if (!cfg) return;
+        var loading = document.getElementById(cfg.loadingId);
+        fetch('/api/chart/median-history?metric=nov3&section=' + cfg.section)
           .then(function(r) { return r.json(); })
           .then(function(data) {
-            chartData[key] = data;
             if (loading) loading.style.display = 'none';
             renderChart(key, data);
           })
@@ -874,20 +841,14 @@
       }
 
       function renderChart(key, data) {
-        var params = parseChartKey(key);
-        var metric = params.metric;
-        var isTop = params.section === 'top';
-        var ctx = document.getElementById('chart-' + key).getContext('2d');
-        var medianColor = metric === 'nov3' ? '#f85149' : '#f0883e';
-        var medianLabel = isTop
-          ? (metric === 'nov3' ? 'Top Median' : 'Top Median (ATH)')
-          : (metric === 'nov3' ? 'SaaS Median' : 'SaaS Median (ATH)');
+        var cfg = CHARTS[key];
+        var ctx = document.getElementById(cfg.canvasId).getContext('2d');
         var labels = data.dates.map(fmtDate);
         var datasets = [];
 
-        // 1. Index benchmark lines (faint by default, highlight on hover) — nov3 only
+        // 1. Index benchmark lines (faint by default, highlight on hover)
         var idxStart = 0;
-        if (data.indices && metric === 'nov3') {
+        if (data.indices) {
           var indexOrder = ['SPY', 'QQQ', 'DIA'];
           var indexLabels = { SPY: 'S&P 500', QQQ: 'Nasdaq', DIA: 'Dow' };
           indexOrder.forEach(function(t) {
@@ -907,19 +868,18 @@
             });
           });
         }
-        var idxEnd = datasets.length;
-        indexRanges[key] = { start: idxStart, end: idxEnd };
+        idxRanges[key] = { start: idxStart, end: datasets.length };
 
-        // 2. Median line (solid, prominent, always visible)
+        // 2. Median line (solid, prominent)
         var medianIdx = datasets.length;
         datasets.push({
-          label: medianLabel,
+          label: cfg.label,
           data: data.median,
-          borderColor: medianColor,
+          borderColor: '#f85149',
           borderWidth: 2.5,
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: medianColor,
+          pointHoverBackgroundColor: '#f85149',
           tension: 0.3,
           fill: false
         });
@@ -932,19 +892,18 @@
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             hover: { mode: 'nearest', intersect: false, axis: 'xy' },
-            onHover: function(event, activeElements, chart) {
-              var r = indexRanges[key];
-              var canvas = chart.canvas;
+            onHover: function(event, activeElements, c) {
+              var r = idxRanges[key];
+              var canvas = c.canvas;
               if (!activeElements || activeElements.length === 0) {
-                if (hoveredIndex[key] !== -1) {
-                  hoveredIndex[key] = -1;
-                  resetIndexStyles(chart, key);
-                  chart.update('none');
+                if (hoveredIdx[key] !== -1) {
+                  hoveredIdx[key] = -1;
+                  resetIndexStyles(c, key);
+                  c.update('none');
                   canvas.style.cursor = 'default';
                 }
                 return;
               }
-              // Find nearest index line
               var nearest = null;
               for (var i = 0; i < activeElements.length; i++) {
                 var di = activeElements[i].datasetIndex;
@@ -954,19 +913,19 @@
                 }
               }
               if (!nearest) {
-                if (hoveredIndex[key] !== -1) {
-                  hoveredIndex[key] = -1;
-                  resetIndexStyles(chart, key);
-                  chart.update('none');
+                if (hoveredIdx[key] !== -1) {
+                  hoveredIdx[key] = -1;
+                  resetIndexStyles(c, key);
+                  c.update('none');
                   canvas.style.cursor = 'default';
                 }
                 return;
               }
               var dsIdx = nearest.datasetIndex;
-              if (hoveredIndex[key] === dsIdx) return;
-              hoveredIndex[key] = dsIdx;
-              highlightIndex(chart, key, dsIdx);
-              chart.update('none');
+              if (hoveredIdx[key] === dsIdx) return;
+              hoveredIdx[key] = dsIdx;
+              highlightIndex(c, key, dsIdx);
+              c.update('none');
               canvas.style.cursor = 'pointer';
             },
             plugins: {
@@ -980,10 +939,8 @@
                 displayColors: true,
                 filter: function(tooltipItem) {
                   var di = tooltipItem.datasetIndex;
-                  // Always show median
                   if (di === medianIdx) return true;
-                  // Show hovered index line only
-                  return di === hoveredIndex[key];
+                  return di === hoveredIdx[key];
                 },
                 callbacks: {
                   label: function(ctx) {
@@ -1016,10 +973,9 @@
           }
         });
 
-        // Reset index highlights on mouse leave
         charts[key].canvas.addEventListener('mouseleave', function() {
-          if (hoveredIndex[key] !== -1) {
-            hoveredIndex[key] = -1;
+          if (hoveredIdx[key] !== -1) {
+            hoveredIdx[key] = -1;
             resetIndexStyles(charts[key], key);
             charts[key].update('none');
           }
